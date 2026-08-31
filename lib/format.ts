@@ -64,6 +64,22 @@ export function generateTransactionId(sequence: number): string {
   return `TRX-${yy}${mm}${dd}-${String(sequence).padStart(4, "0")}`;
 }
 
+export function workingDateObject(workingDate: string | undefined, now: Date = new Date()): Date {
+  if (!workingDate) return now;
+  const date = new Date(`${workingDate}T00:00:00`);
+  date.setHours(
+    now.getHours(),
+    now.getMinutes(),
+    now.getSeconds(),
+    now.getMilliseconds()
+  );
+  return date;
+}
+
+export function isWorkingDateString(value: string): value is string {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
 export function downloadFile(filename: string, content: string, mime = "text/plain"): void {
   const blob = new Blob([content], { type: `${mime};charset=utf-8` });
   const url = URL.createObjectURL(blob);

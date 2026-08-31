@@ -15,6 +15,7 @@ export interface Product {
   price: number;
   stock: number;
   image: string;
+  barcode?: string;
   description?: string;
 }
 
@@ -53,6 +54,7 @@ export interface StoreSettings {
   phone: string;
   taxRate: number;
   receiptFooter: string;
+  workingDate?: string;
 }
 
 export type CheckoutResult =

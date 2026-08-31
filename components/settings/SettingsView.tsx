@@ -36,7 +36,7 @@ export default function SettingsView() {
 
   const handleSave = () => {
     const taxRate = Math.max(0, Math.min(100, Number(form.taxRate) || 0));
-    updateSettings({ ...form, taxRate });
+    updateSettings({ ...form, taxRate, workingDate: form.workingDate || undefined });
     showToast("Pengaturan berhasil disimpan.");
   };
 
@@ -113,6 +113,20 @@ export default function SettingsView() {
               onChange={(e) => setField("taxRate", e.target.value.replace(/[^\d.]/g, ""))}
               className={inputClass}
             />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-stone-500">
+              Tanggal Kerja (opsional)
+            </label>
+            <input
+              type="date"
+              value={form.workingDate ?? ""}
+              onChange={(e) => setField("workingDate", e.target.value)}
+              className={inputClass}
+            />
+            <p className="mt-1 text-xs text-stone-400">
+              Kosongkan untuk memakai tanggal sistem. Tanggal ini dipakai pada halaman Kasir, struk, dan laporan.
+            </p>
           </div>
           <div className="sm:col-span-2">
             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-stone-500">

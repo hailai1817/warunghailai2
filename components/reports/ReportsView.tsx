@@ -45,9 +45,16 @@ const METHOD_BADGE: Record<PaymentMethod, "terracotta" | "amber" | "choco"> = {
 };
 
 export default function ReportsView() {
-  const { transactions, products } = useStore();
-  const [from, setFrom] = useState(() => toISODate(new Date()));
-  const [to, setTo] = useState(() => toISODate(new Date()));
+  const { transactions, products, settings } = useStore();
+  const baseDate = useMemo(
+    () =>
+      settings.workingDate
+        ? new Date(`${settings.workingDate}T12:00:00`)
+        : new Date(),
+    [settings.workingDate]
+  );
+  const [from, setFrom] = useState(() => toISODate(baseDate));
+  const [to, setTo] = useState(() => toISODate(baseDate));
   const [receipt, setReceipt] = useState<Transaction | null>(null);
 
   const filtered = useMemo(() => {
@@ -82,8 +89,8 @@ export default function ReportsView() {
       setTo("");
       return;
     }
-    const end = new Date();
-    const start = new Date();
+    const end = new Date(baseDate);
+    const start = new Date(baseDate);
     start.setDate(start.getDate() - (Number(preset) - 1));
     setFrom(toISODate(start));
     setTo(toISODate(end));
@@ -91,9 +98,9 @@ export default function ReportsView() {
 
   const activePreset: RangePreset | null = (() => {
     if (!from && !to) return "all";
-    const today = toISODate(new Date());
+    const today = toISODate(baseDate);
     if (from === today && to === today) return "today";
-    const start = new Date();
+    const start = new Date(baseDate);
     start.setDate(start.getDate() - 6);
     if (from === toISODate(start) && to === today) return "7";
     start.setDate(start.getDate() - 23);
@@ -169,7 +176,7 @@ export default function ReportsView() {
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
         <div className="xl:col-span-1">
-          <SalesChart transactions={filtered} days={7} />
+          <SalesChart transactions={filtered} days={7} today={baseDate} />
         </div>
 
         <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm xl:col-span-2">

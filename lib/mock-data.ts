@@ -121,6 +121,36 @@ export const INITIAL_PRODUCTS: Product[] = [
     image: img("photo-1509042239860-f550ce710b93"),
     description: "Cappuccino hangat dengan foam susu yang lembut.",
   },
+  {
+    id: "P14",
+    name: "Macha Cakeroll",
+    category: "Cake",
+    price: 50000,
+    stock: 10,
+    barcode: "8990037282383",
+    image: img("photo-1607252650355-f7fd0460ccdb"),
+    description: "Cake roll rasa macha lembut dengan krim hijau khas Jepang.",
+  },
+  {
+    id: "P15",
+    name: "Mango Cake",
+    category: "Cake",
+    price: 30000,
+    stock: 8,
+    barcode: "202506140043",
+    image: img("photo-1565958011703-44f9829ba187"),
+    description: "Cake mangga segar dengan topping buah mangga matang.",
+  },
+  {
+    id: "P16",
+    name: "Pure Milk",
+    category: "Minuman",
+    price: 12000,
+    stock: 20,
+    barcode: "6975830562186",
+    image: img("photo-1550583724-b2692b85b150"),
+    description: "Susu murni dingin yang creamy dan menyegarkan.",
+  },
 ];
 
 export const DEFAULT_SETTINGS: StoreSettings = {

@@ -25,7 +25,7 @@ import {
   INITIAL_REVIEWS,
   INITIAL_TRANSACTIONS,
 } from "@/lib/mock-data";
-import { generateTransactionId } from "@/lib/format";
+import { generateTransactionId, workingDateObject } from "@/lib/format";
 
 function loadFromStorage<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -195,7 +195,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
       const transaction: Transaction = {
         id: generateTransactionId(transactions.length + 1),
-        date: new Date().toISOString(),
+        date: workingDateObject(settings.workingDate).toISOString(),
         items: items.map((i) => ({
           productId: i.productId,
           name: i.name,

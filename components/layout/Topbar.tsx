@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { Croissant, Menu, X } from "lucide-react";
 import type { ViewKey } from "@/lib/types";
+import { useStore } from "@/context/StoreContext";
 
 interface TopbarProps {
   view: ViewKey;
@@ -19,17 +20,28 @@ const VIEW_TITLES: Record<ViewKey, { title: string; subtitle: string }> = {
   pengaturan: { title: "Pengaturan Toko", subtitle: "Konfigurasi profil dan data toko" },
 };
 
-export default function Topbar({ view, onOpenMenu, menuOpen, onCloseMenu }: TopbarProps) {
-  const [now, setNow] = useState(() => new Date());
+let cachedNow: Date | null = null;
 
-  useEffect(() => {
-    setNow(new Date());
-    const timer = window.setInterval(() => setNow(new Date()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
+function getClockSnapshot(): Date {
+  const d = new Date();
+  if (!cachedNow || d.getTime() !== cachedNow.getTime()) cachedNow = d;
+  return cachedNow;
+}
+
+function subscribeToClock(callback: () => void) {
+  const timer = window.setInterval(callback, 1000);
+  return () => window.clearInterval(timer);
+}
+
+export default function Topbar({ view, onOpenMenu, menuOpen, onCloseMenu }: TopbarProps) {
+  const now = useSyncExternalStore(subscribeToClock, getClockSnapshot, () => new Date());
+  const { settings } = useStore();
 
   const meta = VIEW_TITLES[view];
-  const dateLabel = now.toLocaleDateString("id-ID", {
+  const displayDate = settings.workingDate
+    ? new Date(`${settings.workingDate}T12:00:00`)
+    : now;
+  const dateLabel = displayDate.toLocaleDateString("id-ID", {
     weekday: "long",
     day: "numeric",
     month: "long",

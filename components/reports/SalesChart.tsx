@@ -7,12 +7,13 @@ import { formatRupiah } from "@/lib/format";
 interface SalesChartProps {
   transactions: Transaction[];
   days?: number;
+  today?: Date;
 }
 
-export default function SalesChart({ transactions, days = 7 }: SalesChartProps) {
+export default function SalesChart({ transactions, days = 7, today }: SalesChartProps) {
   const data = useMemo(() => {
     const result: { label: string; total: number; date: Date }[] = [];
-    const now = new Date();
+    const now = today ?? new Date();
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date(now);
       d.setDate(now.getDate() - i);
@@ -34,10 +35,10 @@ export default function SalesChart({ transactions, days = 7 }: SalesChartProps) 
       });
     }
     return result;
-  }, [transactions, days]);
+  }, [transactions, days, today]);
 
   const max = Math.max(...data.map((d) => d.total), 1);
-  const today = new Date();
+  const todayLabel = today ?? new Date();
 
   return (
     <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm">
@@ -52,7 +53,7 @@ export default function SalesChart({ transactions, days = 7 }: SalesChartProps) 
             month: "long",
           })}
           {" - "}
-          {today.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
+          {todayLabel.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
         </span>
       </div>
 

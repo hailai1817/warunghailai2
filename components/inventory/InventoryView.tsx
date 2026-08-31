@@ -45,7 +45,11 @@ export default function InventoryView() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return products.filter((p) => {
-      const matchQuery = !q || p.name.toLowerCase().includes(q) || p.id.toLowerCase().includes(q);
+      const matchQuery =
+        !q ||
+        p.name.toLowerCase().includes(q) ||
+        p.id.toLowerCase().includes(q) ||
+        p.barcode?.toLowerCase().includes(q);
       const matchCat = filter === "Semua" || p.category === filter;
       return matchQuery && matchCat;
     });
@@ -138,11 +142,12 @@ export default function InventoryView() {
 
       <div className="overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-left text-sm">
+          <table className="w-full min-w-[880px] text-left text-sm">
             <thead>
               <tr className="border-b border-stone-200 bg-stone-50/80 text-xs font-bold uppercase tracking-wide text-stone-500">
                 <th className="px-4 py-3">ID</th>
                 <th className="px-4 py-3">Produk</th>
+                <th className="px-4 py-3">Barcode</th>
                 <th className="px-4 py-3">Kategori</th>
                 <th className="px-4 py-3 text-right">Harga Jual</th>
                 <th className="px-4 py-3 text-center">Stok</th>
@@ -185,6 +190,15 @@ export default function InventoryView() {
                           )}
                         </div>
                       </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      {product.barcode ? (
+                        <span className="font-mono text-xs font-semibold text-[var(--color-caramel)]">
+                          {product.barcode}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-stone-300">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <Badge variant="cream">{product.category}</Badge>

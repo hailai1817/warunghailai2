@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scan Barcode - HaiLai's Bakery</title>
+<style>
+  :root {
+    --cream: #faf6ef;
+    --crust: #d8d0c5;
+    --terracotta: #b15c45;
+    --amber: #d9a441;
+    --caramel: #b08452;
+    --ink: #292524;
+    --muted: #8a7f72;
+    --line: #e8e1d4;
+    --white: #ffffff;
+    --red: #dc2626;
+    --green: #16a34a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: linear-gradient(180deg, #fdfaf4, var(--cream));
+    color: var(--ink);
+    min-height: 100vh;
+    padding: 24px 16px 72px;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; }
+
+  header.app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .logo {
+    width: 46px; height: 46px; border-radius: 13px;
+    background: linear-gradient(135deg, #f0b429, var(--terracotta));
+    color: #fff; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 12px rgba(177, 92, 69, .35);
+    flex-shrink: 0;
+  }
+  .brand h1 { font-size: 20px; margin: 0; }
+  .brand p { margin: 0; font-size: 12px; color: var(--muted); }
+  .clock {
+    font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums;
+    background: var(--white); color: var(--ink);
+    padding: 8px 14px; border-radius: 12px; border: 1px solid var(--line);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, .04);
+  }
+
+  .scan-box {
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow: 0 6px 18px rgba(41, 37, 36, .06);
+    margin-bottom: 16px;
+  }
+  .scan-title {
+    display: flex; align-items: center; gap: 9px;
+    font-size: 14px; font-weight: 800; color: var(--terracotta);
+    margin-bottom: 12px;
+  }
+  .scan-title svg { color: var(--caramel); flex-shrink: 0; }
+  .scan-row { display: flex; gap: 10px; }
+  .scan-row input {
+    flex: 1;
+    font-size: 18px; letter-spacing: 1px;
+    padding: 14px 16px;
+    border: 2px solid var(--line);
+    border-radius: 12px;
+    outline: none;
+    background: #fbf9f4;
+    font-family: inherit;
+    transition: border-color .15s, box-shadow .15s, background .15s;
+  }
+  .scan-row input:focus {
+    border-color: var(--amber);
+    box-shadow: 0 0 0 4px rgba(217, 164, 65, .18);
+    background: #fff;
+  }
+  .scan-row button {
+    background: linear-gradient(135deg, var(--terracotta), #a04f3a);
+    color: #fff; border: none;
+    padding: 14px 22px; border-radius: 12px;
+    font-size: 15px; font-weight: 800; cursor: pointer;
+    transition: opacity .15s;
+    white-space: nowrap;
+  }
+  .scan-row button:hover { opacity: .9; }
+  .hint { margin: 10px 2px 0; font-size: 12px; color: var(--muted); }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .stat {
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 4px;
+    box-shadow: 0 3px 10px rgba(41, 37, 36, .04);
+  }
+  .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; }
+  .stat-value { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .stat.highlight { background: linear-gradient(135deg, #292524, #44403c); border: none; color: #fff; }
+  .stat.highlight .stat-label { color: #d6d3d1; }
+  .stat.highlight .stat-value { color: #fcd34d; }
+
+  .table-card {
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    box-shadow: 0 6px 18px rgba(41, 37, 36, .06);
+    overflow: hidden;
+  }
+  .table-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 18px; border-bottom: 1px solid var(--line);
+  }
+  .table-head h2 { margin: 0; font-size: 15px; font-weight: 800; }
+  .btn-clear {
+    font-size: 12px; font-weight: 700; color: var(--red);
+    background: transparent; border: 1px solid #fecaca;
+    padding: 6px 12px; border-radius: 10px; cursor: pointer; transition: background .15s;
+  }
+  .btn-clear:hover { background: #fef2f2; }
+
+  .table-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 660px; }
+  th {
+    text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--muted); padding: 10px 14px; border-bottom: 1px solid var(--line); background: #fbf9f4;
+  }
+  td { padding: 12px 14px; border-bottom: 1px solid var(--line); font-size: 14px; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: #fbf8f1; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td.barcode { font-family: Consolas, Menlo, monospace; font-size: 12px; color: var(--caramel); }
+  td.strong { font-weight: 800; }
+  .empty { text-align: center; color: var(--muted); padding: 28px !important; }
+  tfoot td {
+    font-weight: 800; font-size: 15px; padding: 14px;
+    border-top: 2px solid var(--line); background: #fbf9f4; color: var(--terracotta);
+  }
+  tfoot td.num { text-align: right; }
+  .btn-del {
+    background: #fff1f1; color: var(--red); border: 1px solid #fecaca;
+    font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 10px;
+    cursor: pointer; transition: background .15s, color .15s;
+  }
+  .btn-del:hover { background: var(--red); color: #fff; }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translate(-50%, 24px);
+    background: #292524; color: #fff;
+    padding: 12px 20px; border-radius: 12px;
+    font-size: 14px; font-weight: 700;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .2);
+    opacity: 0; pointer-events: none; z-index: 99;
+    transition: opacity .25s, transform .25s;
+    max-width: 90vw; text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .toast.success { background: var(--green); }
+  .toast.error { background: var(--red); }
+
+  @media (max-width: 640px) {
+    .stats { grid-template-columns: 1fr; }
+    .scan-row { flex-direction: column; }
+    .scan-row button { padding: 13px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header class="app-header">
+    <div class="brand">
+      <div class="logo">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M8 3v18M4 5v14M12 5v14M16 3v18M20 5v14"/>
+        </svg>
+      </div>
+      <div>
+        <h1>HaiLai's Bakery</h1>
+        <p>Kasir Scan Barcode</p>
+      </div>
+    </div>
+    <div class="clock" id="clock">--:--:--</div>
+  </header>
+
+  <section class="scan-box">
+    <div class="scan-title">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <rect x="3" y="5" width="18" height="14" rx="2"/>
+        <path d="M8 9v6M12 9v6M16 9v6"/>
+      </svg>
+      Scanner Fisik Aktif
+    </div>
+    <div class="scan-row">
+      <input type="text" id="input-barcode" placeholder="Scan barcode produk di sini..." autofocus autocomplete="off" spellcheck="false">
+      <button type="button" id="btn-scan">Proses</button>
+    </div>
+    <p class="hint">Arahkan scanner ke barcode produk. Sistem akan otomatis memproses saat scanner menekan Enter.</p>
+  </section>
+
+  <section class="stats">
+    <div class="stat">
+      <span class="stat-label">Total Item</span>
+      <span class="stat-value" id="tot-qty">0</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Jenis Produk</span>
+      <span class="stat-value" id="tot-kinds">0</span>
+    </div>
+    <div class="stat highlight">
+      <span class="stat-label">Total Pembayaran</span>
+      <span class="stat-value" id="tot-nominal">Rp0</span>
+    </div>
+  </section>
+
+  <section class="table-card">
+    <div class="table-head">
+      <h2>Hasil Scan</h2>
+      <button type="button" class="btn-clear" id="btn-clear">Kosongkan Semua</button>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>No</th>
+            <th>Barcode</th>
+            <th>Nama Produk</th>
+            <th class="num">Harga</th>
+            <th class="num">Kuantitas</th>
+            <th class="num">Total Harga</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="cart-body"></tbody>
+        <tfoot>
+          <tr>
+            <td colspan="5">Total Keseluruhan</td>
+            <td class="num" id="foot-total">Rp0</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </section>
+
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+
+const MASTER_DATA = [
+  { barcode: "8990037282383", nama: "Macha Cakeroll", harga: 50000 },
+  { barcode: "202506140043", nama: "Mango Cake", harga: 30000 },
+  { barcode: "6975830562186", nama: "Pure Milk", harga: 12000 }
+];
+
+const STORAGE_KEY = "hailai.barcode.scan.v1";
+
+const inputBarcode = document.getElementById("input-barcode");
+const btnScan = document.getElementById("btn-scan");
+const btnClear = document.getElementById("btn-clear");
+const cartBody = document.getElementById("cart-body");
+const footTotal = document.getElementById("foot-total");
+const totQty = document.getElementById("tot-qty");
+const totKinds = document.getElementById("tot-kinds");
+const totNominal = document.getElementById("tot-nominal");
+const toastEl = document.getElementById("toast");
+const clockEl = document.getElementById("clock");
+
+let memoryCart = null;
+
+const rupiah = new Intl.NumberFormat("id-ID");
+function formatRupiah(n) { return "Rp" + rupiah.format(n); }
+
+function getCart() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (e) { /* fallback memori (file:// Chrome) */ }
+  if (!memoryCart) memoryCart = [];
+  return memoryCart;
+}
+
+function saveCart(cart) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(cart));
+  } catch (e) {
+    memoryCart = cart;
+  }
+}
+
+function refocus() {
+  inputBarcode.value = "";
+  inputBarcode.focus();
+}
+
+let toastTimer = null;
+function showToast(msg, type) {
+  toastEl.textContent = msg;
+  toastEl.className = "toast show " + (type || "");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () {
+    toastEl.classList.remove("show");
+  }, 2500);
+}
+
+function handleScan() {
+  const kode = inputBarcode.value.trim();
+  if (!kode) {
+    showToast("Kode barcode kosong, silakan scan kembali", "error");
+    refocus();
+    return;
+  }
+  const produk = MASTER_DATA.find(function (p) { return p.barcode === kode; });
+  if (!produk) {
+    showToast("Produk " + kode + " tidak terdaftar", "error");
+    refocus();
+    return;
+  }
+  const cart = getCart();
+  const ada = cart.find(function (i) { return i.barcode === produk.barcode; });
+  if (ada) {
+    ada.kuantitas += 1;
+  } else {
+    cart.push({ barcode: produk.barcode, nama: produk.nama, harga: produk.harga, kuantitas: 1 });
+  }
+  saveCart(cart);
+  renderTable();
+  showToast(produk.nama + " ditambahkan (total " + (ada ? ada.kuantitas : 1) + "x)", "success");
+  refocus();
+}
+
+function buatBaris(item, idx) {
+  const tr = document.createElement("tr");
+  const tdNo = document.createElement("td"); tdNo.textContent = idx + 1;
+  const tdKode = document.createElement("td"); tdKode.className = "barcode"; tdKode.textContent = item.barcode;
+  const tdNama = document.createElement("td"); tdNama.textContent = item.nama;
+  const tdHarga = document.createElement("td"); tdHarga.className = "num"; tdHarga.textContent = formatRupiah(item.harga);
+  const tdQty = document.createElement("td"); tdQty.className = "num"; tdQty.textContent = item.kuantitas;
+  const tdSub = document.createElement("td"); tdSub.className = "num strong"; tdSub.textContent = formatRupiah(item.harga * item.kuantitas);
+  const tdAksi = document.createElement("td");
+  const btnDel = document.createElement("button");
+  btnDel.type = "button";
+  btnDel.className = "btn-del";
+  btnDel.dataset.barcode = item.barcode;
+  btnDel.textContent = "Hapus";
+  tdAksi.appendChild(btnDel);
+  tr.appendChild(tdNo);
+  tr.appendChild(tdKode);
+  tr.appendChild(tdNama);
+  tr.appendChild(tdHarga);
+  tr.appendChild(tdQty);
+  tr.appendChild(tdSub);
+  tr.appendChild(tdAksi);
+  return tr;
+}
+
+function renderTable() {
+  const cart = getCart();
+  let totalQty = 0;
+  let totalHarga = 0;
+  cartBody.innerHTML = "";
+
+  if (!cart.length) {
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.className = "empty";
+    td.colSpan = 7;
+    td.textContent = "Belum ada produk yang di-scan. Silakan scan barcode produk terlebih dahulu.";
+    tr.appendChild(td);
+    cartBody.appendChild(tr);
+  } else {
+    cart.forEach(function (item, idx) {
+      cartBody.appendChild(buatBaris(item, idx));
+      totalQty += item.kuantitas;
+      totalHarga += item.harga * item.kuantitas;
+    });
+  }
+
+  footTotal.textContent = formatRupiah(totalHarga);
+  totQty.textContent = totalQty;
+  totKinds.textContent = cart.length;
+  totNominal.textContent = formatRupiah(totalHarga);
+}
+
+cartBody.addEventListener("click", function (e) {
+  const btn = e.target.closest("[data-barcode]");
+  if (!btn) return;
+  const cart = getCart().filter(function (i) { return i.barcode !== btn.dataset.barcode; });
+  saveCart(cart);
+  renderTable();
+  showToast("Produk dihapus dari hasil scan", "success");
+  refocus();
+});
+
+inputBarcode.addEventListener("keydown", function (e) {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    handleScan();
+  }
+});
+
+btnScan.addEventListener("click", function () {
+  handleScan();
+});
+
+btnClear.addEventListener("click", function () {
+  if (!getCart().length) return;
+  if (confirm("Hapus semua produk dari hasil scan?")) {
+    saveCart([]);
+    renderTable();
+    showToast("Semua hasil scan dihapus", "success");
+    refocus();
+  }
+});
+
+function tickClock() {
+  clockEl.textContent = new Date().toLocaleTimeString("id-ID", {
+    hour: "2-digit", minute: "2-digit", second: "2-digit"
+  });
+}
+
+renderTable();
+tickClock();
+setInterval(tickClock, 1000);
+inputBarcode.focus();
+</script>
+
+</body>
+</html>

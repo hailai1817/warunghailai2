@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Search, ShoppingBasket } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Barcode, Search, ShoppingBasket } from "lucide-react";
 import type { Category, Transaction } from "@/lib/types";
 import { CATEGORIES } from "@/lib/types";
 import { useStore } from "@/context/StoreContext";
@@ -19,6 +19,43 @@ export default function KasirView() {
   const [filter, setFilter] = useState<CategoryFilter>("Semua");
   const [cartOpen, setCartOpen] = useState(false);
   const [receipt, setReceipt] = useState<Transaction | null>(null);
+  const [scan, setScan] = useState("");
+  const [scanMsg, setScanMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const scanRef = useRef<HTMLInputElement>(null);
+  const scanTimer = useRef<number | null>(null);
+
+  useEffect(() => {
+    scanRef.current?.focus();
+    return () => {
+      if (scanTimer.current) window.clearTimeout(scanTimer.current);
+    };
+  }, []);
+
+  const clearScanMsg = () => {
+    if (scanTimer.current) window.clearTimeout(scanTimer.current);
+    scanTimer.current = window.setTimeout(() => setScanMsg(null), 2500);
+  };
+
+  const handleScan = () => {
+    const code = scan.trim();
+    if (!code) {
+      scanRef.current?.focus();
+      return;
+    }
+    const product = products.find((p) => p.barcode === code);
+    if (!product) {
+      setScanMsg({ ok: false, text: `Barcode ${code} tidak terdaftar.` });
+      clearScanMsg();
+      setScan("");
+      scanRef.current?.focus();
+      return;
+    }
+    addToCart(product.id);
+    setScanMsg({ ok: true, text: `${product.name} ditambahkan ke keranjang.` });
+    clearScanMsg();
+    setScan("");
+    scanRef.current?.focus();
+  };
 
   const cartQtyMap = useMemo(() => {
     const map = new Map<string, number>();
@@ -45,6 +82,40 @@ export default function KasirView() {
     <div className="flex h-full">
       <div className="min-w-0 flex-1">
         <div className="space-y-4 p-4 sm:p-6">
+          <div className="rounded-2xl border-2 border-dashed border-[var(--color-terracotta)]/40 bg-white/70 px-4 py-3">
+            <div className="flex items-center gap-3">
+              <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--color-terracotta)] text-white sm:flex">
+                <Barcode className="h-5 w-5" />
+              </div>
+              <input
+                ref={scanRef}
+                value={scan}
+                onChange={(e) => setScan(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleScan();
+                  }
+                }}
+                placeholder="Scan barcode produk di sini, lalu tekan Enter..."
+                className="w-full bg-transparent font-mono text-sm tracking-wider text-stone-800 outline-none placeholder:font-sans placeholder:text-stone-400"
+              />
+            </div>
+            <p
+              className={`mt-1 text-xs sm:ml-12 ${
+                scanMsg
+                  ? scanMsg.ok
+                    ? "font-semibold text-emerald-600"
+                    : "font-semibold text-red-600"
+                  : "text-stone-400"
+              }`}
+            >
+              {scanMsg
+                ? scanMsg.text
+                : "Arahkan scanner fisik ke barcode produk, produk otomatis masuk ke keranjang."}
+            </p>
+          </div>
+
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-stone-400" />

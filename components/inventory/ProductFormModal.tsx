@@ -20,6 +20,7 @@ const EMPTY_FORM = {
   price: "",
   stock: "",
   image: "",
+  barcode: "",
   description: "",
 };
 
@@ -34,6 +35,7 @@ function initForm(product: Product | null): typeof EMPTY_FORM {
     price: String(product.price),
     stock: String(product.stock),
     image: product.image,
+    barcode: product.barcode ?? "",
     description: product.description ?? "",
   };
 }
@@ -134,6 +136,7 @@ export default function ProductFormModal({ product, onClose, onSave }: ProductFo
       price,
       stock,
       image: form.image.trim() || product?.image || "",
+      barcode: form.barcode.trim() || undefined,
       description: form.description.trim() || undefined,
     });
   };
@@ -169,6 +172,21 @@ export default function ProductFormModal({ product, onClose, onSave }: ProductFo
             className={inputClass(errors.name)}
           />
           {errors.name && <p className="mt-1 text-xs font-semibold text-red-600">{errors.name}</p>}
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-stone-500">
+            Barcode (opsional)
+          </label>
+          <input
+            value={form.barcode}
+            onChange={(e) => setField("barcode", e.target.value)}
+            placeholder="cth: 8990037282383"
+            className={inputClass()}
+          />
+          <p className="mt-1 text-xs text-stone-400">
+            Dibaca langsung oleh scanner di halaman Kasir. Kosongkan jika produk tidak memakai barcode.
+          </p>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
