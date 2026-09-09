@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import ClickSparks from "@/components/ui/ClickSparks";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "HaiLai's Bakery — POS & Katalog",
+  title: "HaiLai's Bakery and Cafe - POS & Katalog",
   description:
-    "Aplikasi Point of Sale (POS) & Katalog all-in-one untuk Toko Roti HaiLai's Bakery.",
+    "Aplikasi Point of Sale (POS) & Katalog all-in-one untuk Bakery dan Cafe HaiLai's Bakery and Cafe.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -24,7 +25,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="id"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-[var(--color-bg)]">{children}</body>
+      <body className="min-h-full flex flex-col bg-[var(--color-bg)]">
+        {children}
+        <ClickSparks />
+      </body>
     </html>
   );
 }

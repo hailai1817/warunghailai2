@@ -110,7 +110,7 @@ export default function ReportsView() {
 
   const handleExportCSV = () => {
     const rows: (string | number)[][] = [
-      ["No. Transaksi", "Tanggal", "Waktu", "Item Belanja", "Metode Bayar", "Subtotal", "PPN", "Total"],
+      ["No. Transaksi", "Tanggal", "Waktu", "Item Belanja", "Metode Bayar", "Subtotal", "Diskon", "PPN", "Total"],
     ];
     filtered.forEach((t) => {
       rows.push([
@@ -120,6 +120,7 @@ export default function ReportsView() {
         t.items.map((i) => `${i.name} (${i.qty}pcs)`).join(", "),
         t.paymentMethod,
         t.subtotal,
+        t.discount ?? 0,
         t.tax,
         t.total,
       ]);
@@ -259,6 +260,7 @@ export default function ReportsView() {
                 <th className="px-5 py-3">Tanggal / Waktu</th>
                 <th className="px-5 py-3">Item Belanja</th>
                 <th className="px-5 py-3">Metode Bayar</th>
+                <th className="px-5 py-3 text-right">Diskon</th>
                 <th className="px-5 py-3 text-right">Total Bayar</th>
                 <th className="px-5 py-3 text-center">Aksi</th>
               </tr>
@@ -288,6 +290,13 @@ export default function ReportsView() {
                         <MethodIcon className="h-3 w-3" />
                         {t.paymentMethod}
                       </Badge>
+                    </td>
+                    <td className="px-5 py-3 text-right text-sm font-semibold tabular-nums">
+                      {t.discount ? (
+                        <span className="text-emerald-600">-{formatRupiah(t.discount)}</span>
+                      ) : (
+                        <span className="text-stone-300">-</span>
+                      )}
                     </td>
                     <td className="px-5 py-3 text-right font-extrabold tabular-nums text-stone-800">
                       {formatRupiah(t.total)}
@@ -322,8 +331,8 @@ export default function ReportsView() {
       <div id="report-print-area" className="print-area">
         <div className="p-8 font-sans text-sm text-black">
           <div className="text-center">
-            <h1 className="text-xl font-extrabold">HaiLai&apos;s Bakery</h1>
-            <p>Jl. Melati Raya No. 88, Bandung — (022) 555-1234</p>
+            <h1 className="text-xl font-extrabold">{settings.storeName}</h1>
+            <p>{settings.address} — {settings.phone}</p>
             <p className="mt-1 font-semibold">LAPORAN TRANSAKSI ({rangeLabel})</p>
             <p>Dicetak: {new Date().toLocaleString("id-ID")}</p>
           </div>
@@ -335,6 +344,7 @@ export default function ReportsView() {
                 <th className="px-2 py-1 text-left">Tanggal / Waktu</th>
                 <th className="px-2 py-1 text-left">Item</th>
                 <th className="px-2 py-1 text-left">Metode</th>
+                <th className="px-2 py-1 text-right">Diskon</th>
                 <th className="px-2 py-1 text-right">Total</th>
               </tr>
             </thead>
@@ -346,13 +356,16 @@ export default function ReportsView() {
                   <td className="px-2 py-1">{formatDateTime(t.date)}</td>
                   <td className="px-2 py-1">{t.items.map((i) => `${i.name} x${i.qty}`).join(", ")}</td>
                   <td className="px-2 py-1">{t.paymentMethod}</td>
+                  <td className="px-2 py-1 text-right">
+                    {t.discount ? `-${formatRupiah(t.discount)}` : "-"}
+                  </td>
                   <td className="px-2 py-1 text-right">{formatRupiah(t.total)}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-black font-extrabold">
-                <td colSpan={5} className="px-2 py-2 text-right">
+                <td colSpan={6} className="px-2 py-2 text-right">
                   TOTAL ({filtered.length} transaksi)
                 </td>
                 <td className="px-2 py-2 text-right">{formatRupiah(stats.totalSales)}</td>

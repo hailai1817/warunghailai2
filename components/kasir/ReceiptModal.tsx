@@ -81,6 +81,17 @@ export default function ReceiptModal({ transaction, onClose }: ReceiptModalProps
               <span>Subtotal</span>
               <span className="tabular-nums">{formatRupiah(transaction.subtotal)}</span>
             </div>
+            {transaction.discount ? (
+              <div className="flex justify-between">
+                <span>
+                  Diskon
+                  {transaction.discountType === "percent"
+                    ? ` ${transaction.discountValue}%`
+                    : ""}
+                </span>
+                <span className="tabular-nums">-{formatRupiah(transaction.discount)}</span>
+              </div>
+            ) : null}
             <div className="flex justify-between">
               <span>PPN {settings.taxRate}%</span>
               <span className="tabular-nums">{formatRupiah(transaction.tax)}</span>

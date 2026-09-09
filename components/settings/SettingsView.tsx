@@ -2,18 +2,21 @@
 
 import { useState } from "react";
 import {
+  BadgePercent,
   Check,
   Database,
   Download,
   Info,
+  Palette,
   Save,
   Store,
   Trash2,
   RotateCcw,
 } from "lucide-react";
 import { useStore } from "@/context/StoreContext";
-import type { StoreSettings } from "@/lib/types";
+import type { ColorTheme, StoreSettings } from "@/lib/types";
 import { DEFAULT_SETTINGS } from "@/lib/mock-data";
+import { BAKERY_THEME, THEME_PRESETS } from "@/lib/color";
 import { downloadFile } from "@/lib/format";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
@@ -21,6 +24,13 @@ export default function SettingsView() {
   const { settings, updateSettings, resetData, clearTransactions, products, transactions, reviews } =
     useStore();
   const [form, setForm] = useState<StoreSettings>(settings);
+  const theme = settings.theme ?? DEFAULT_SETTINGS.theme ?? BAKERY_THEME;
+  const [presetStr, setPresetStr] = useState(
+    (settings.discountPresets && settings.discountPresets.length > 0
+      ? settings.discountPresets
+      : DEFAULT_SETTINGS.discountPresets ?? []
+    ).join(", ")
+  );
   const [toast, setToast] = useState("");
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmClearTx, setConfirmClearTx] = useState(false);
@@ -36,7 +46,23 @@ export default function SettingsView() {
 
   const handleSave = () => {
     const taxRate = Math.max(0, Math.min(100, Number(form.taxRate) || 0));
-    updateSettings({ ...form, taxRate, workingDate: form.workingDate || undefined });
+    const discountPresets = presetStr
+      .split(",")
+      .map((s) => Number(s.trim().replace(/[^\d.]/g, "")))
+      .filter((n) => Number.isFinite(n) && n > 0 && n <= 100)
+      .map((n) => Math.round(n));
+    const { storeName, address, phone, receiptFooter, workingDate } = form;
+    updateSettings({
+      storeName,
+      address,
+      phone,
+      receiptFooter,
+      workingDate: workingDate || undefined,
+      taxRate,
+      discountPresets,
+      theme: settings.theme ?? theme,
+    });
+    setPresetStr(discountPresets.join(", "));
     showToast("Pengaturan berhasil disimpan.");
   };
 
@@ -154,6 +180,146 @@ export default function SettingsView() {
 
       <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm sm:p-6">
         <div className="mb-5 flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-[var(--color-terracotta)] text-white shadow">
+            <BadgePercent className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-base font-extrabold text-stone-800">Kustomisasi Diskon</h2>
+            <p className="text-xs text-stone-500">
+              Daftar tombol cepat diskon yang tersedia di halaman Kasir
+            </p>
+          </div>
+        </div>
+
+        <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-stone-500">
+          Preset Diskon Persen (%)
+        </label>
+        <input
+          value={presetStr}
+          onChange={(e) => setPresetStr(e.target.value)}
+          placeholder="cth: 5, 10, 15, 20, 25"
+          className={inputClass}
+        />
+        <p className="mt-1.5 text-xs text-stone-400">
+          Pisahkan dengan koma. Nilai hanya 1-100%. Di kasir tetap bisa memasukkan diskon bebas (persen
+          atau nominal) selain preset ini.
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          <span className="text-xs font-semibold text-stone-400">Pratinjau:</span>
+          {presetStr
+            .split(",")
+            .map((s) => Number(s.trim().replace(/[^\d.]/g, "")))
+            .filter((n) => Number.isFinite(n) && n > 0 && n <= 100)
+            .slice(0, 8)
+            .map((n) => (
+              <span
+                key={n}
+                className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800"
+              >
+                {Math.round(n)}%
+              </span>
+            ))}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm sm:p-6">
+        <div className="mb-5 flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-[var(--color-terracotta)] text-white shadow">
+            <Palette className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-base font-extrabold text-stone-800">Tema Warna</h2>
+            <p className="text-xs text-stone-500">
+              Ganti warna suasana aplikasi, atau kustom warna sendiri
+            </p>
+          </div>
+        </div>
+
+        <div className="mb-3 flex flex-wrap gap-2">
+          {THEME_PRESETS.map((preset) => {
+            const active = theme.id === preset.id;
+            return (
+              <button
+                key={preset.id}
+                onClick={() => updateSettings({ theme: preset })}
+                className={`flex items-center gap-2 rounded-xl border-2 px-3 py-2 text-xs font-bold transition ${
+                  active
+                    ? "border-[var(--color-terracotta)] bg-[var(--color-terracotta)] text-white shadow"
+                    : "border-stone-200 bg-white text-stone-600 hover:border-amber-300"
+                }`}
+              >
+                <span className="flex -space-x-1">
+                  <span
+                    className="h-5 w-5 rounded-full border border-white/70"
+                    style={{ backgroundColor: preset.primary }}
+                  />
+                  <span
+                    className="h-5 w-5 rounded-full border border-white/70"
+                    style={{ backgroundColor: preset.secondary }}
+                  />
+                  <span
+                    className="h-5 w-5 rounded-full border border-white/70"
+                    style={{ backgroundColor: preset.dark }}
+                  />
+                </span>
+                {preset.name}
+                {active && <Check className="h-3.5 w-3.5" />}
+              </button>
+            );
+          })}
+          <button
+            onClick={() => updateSettings({ theme: { ...theme, id: "custom" } })}
+            className={`flex items-center gap-2 rounded-xl border-2 px-3 py-2 text-xs font-bold transition ${
+              theme.id === "custom"
+                ? "border-[var(--color-terracotta)] bg-[var(--color-terracotta)] text-white shadow"
+                : "border-stone-200 bg-white text-stone-600 hover:border-amber-300"
+            }`}
+          >
+            <span className="flex h-5 w-5 items-center justify-center rounded-full border border-dashed border-current">
+              <span className="h-3 w-3 rounded-full bg-[conic-gradient(from_0deg,#bd6a55,#d9a359,#56403a,#bd6a55)]" />
+            </span>
+            Kustom
+            {theme.id === "custom" && <Check className="h-3.5 w-3.5" />}
+          </button>
+        </div>
+
+        {theme.id === "custom" && (
+          <div className="grid grid-cols-1 gap-3 rounded-xl border border-stone-200 bg-stone-50/70 p-4 sm:grid-cols-2">
+            {([
+              ["primary", "Warna Utama"],
+              ["secondary", "Warna Pendukung"],
+              ["dark", "Warna Gelap"],
+              ["bg", "Latar Belakang"],
+            ] as [keyof ColorTheme, string][]).map(([key, label]) => (
+              <label key={key} className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={theme[key]}
+                  onChange={(e) =>
+                    updateSettings({ theme: { ...theme, id: "custom", [key]: e.target.value } })
+                  }
+                  className="h-10 w-14 cursor-pointer rounded-lg border border-stone-200 bg-white p-1"
+                />
+                <span className="flex-1 text-sm font-bold text-stone-700">{label}</span>
+                <code className="rounded bg-white px-2 py-1 font-mono text-xs text-stone-500">
+                  {theme[key]}
+                </code>
+              </label>
+            ))}
+            <div className="flex items-center gap-2 sm:col-span-2">
+              <span className="text-xs font-semibold text-stone-400">Pratinjau utama:</span>
+              <span className="h-6 w-6 rounded-full border border-stone-200" style={{ backgroundColor: "var(--color-terracotta)" }} />
+              <span className="h-6 w-6 rounded-full border border-stone-200" style={{ backgroundColor: "var(--color-amber-400)" }} />
+              <span className="h-6 w-6 rounded-full border border-stone-200" style={{ backgroundColor: "var(--color-choco)" }} />
+              <span className="h-6 w-6 rounded-full border border-stone-200" style={{ backgroundColor: "var(--color-cream)" }} />
+              <span className="h-6 w-6 rounded-full border border-stone-200" style={{ backgroundColor: "var(--color-bg)" }} />
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm sm:p-6">
+        <div className="mb-5 flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-stone-500 to-stone-700 text-white shadow">
             <Database className="h-5 w-5" />
           </div>
@@ -202,7 +368,7 @@ export default function SettingsView() {
       <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-900">
         <Info className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
         <p>
-          Aplikasi <b>HaiLai&apos;s Bakery POS</b> bekerja 100% di sisi browser. Semua perubahan
+          Aplikasi <b>HaiLai&apos;s Bakery &amp; Cafe POS</b> bekerja 100% di sisi browser. Semua perubahan
           produk, stok, transaksi, dan ulasan disimpan otomatis ke <code className="rounded bg-amber-100 px-1">localStorage</code>{" "}
           sehingga tetap ada saat halaman dimuat ulang.
         </p>
@@ -229,6 +395,7 @@ export default function SettingsView() {
         onConfirm={() => {
           resetData();
           setForm(DEFAULT_SETTINGS);
+          setPresetStr((DEFAULT_SETTINGS.discountPresets ?? []).join(", "));
           setConfirmReset(false);
           showToast("Data berhasil direset ke kondisi awal.");
         }}

@@ -7,17 +7,20 @@ import {
   Check,
   CreditCard,
   Minus,
+  Percent,
   Plus,
   QrCode,
   Receipt,
+  RotateCcw,
   ShoppingBasket,
+  Tag,
   Trash2,
   X,
 } from "lucide-react";
-import type { PaymentMethod, Transaction } from "@/lib/types";
+import type { DiscountType, PaymentMethod, Transaction } from "@/lib/types";
 import { PAYMENT_METHODS } from "@/lib/types";
 import { QUICK_CASH } from "@/lib/constants";
-import { FALLBACK_IMAGE } from "@/lib/mock-data";
+import { DEFAULT_SETTINGS, FALLBACK_IMAGE } from "@/lib/mock-data";
 import { useStore } from "@/context/StoreContext";
 import { formatRupiah } from "@/lib/format";
 import EmptyState from "@/components/ui/EmptyState";
@@ -38,10 +41,25 @@ export default function CartPanel({ onClose, onSuccess }: CartPanelProps) {
   const [method, setMethod] = useState<PaymentMethod>("Tunai");
   const [cashStr, setCashStr] = useState("");
   const [error, setError] = useState("");
+  const [discountOpen, setDiscountOpen] = useState(false);
+  const [discountType, setDiscountType] = useState<DiscountType>("percent");
+  const [discountValue, setDiscountValue] = useState("");
+
+  const presets =
+    settings.discountPresets && settings.discountPresets.length > 0
+      ? settings.discountPresets
+      : DEFAULT_SETTINGS.discountPresets ?? [];
 
   const subtotal = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
-  const tax = Math.round((subtotal * settings.taxRate) / 100);
-  const total = subtotal + tax;
+  const rawValue = Number(discountValue.replace(",", ".")) || 0;
+  const discountAmount =
+    discountType === "percent"
+      ? Math.round((subtotal * Math.min(Math.max(0, rawValue), 100)) / 100)
+      : Math.min(Math.max(0, Math.round(rawValue)), subtotal);
+  const discount = discountOpen && subtotal > 0 ? Math.min(discountAmount, subtotal) : 0;
+  const taxable = subtotal - discount;
+  const tax = Math.round((taxable * settings.taxRate) / 100);
+  const total = taxable + tax;
   const cash = parseInt(cashStr.replace(/\D/g, ""), 10) || 0;
   const paid = method === "Tunai" ? cash : total;
   const change = paid - total;
@@ -56,15 +74,32 @@ export default function CartPanel({ onClose, onSuccess }: CartPanelProps) {
     setMethod(m);
   };
 
+  const handleDiscountChange = (value: string) => {
+    setError("");
+    setDiscountValue(value.replace(/[^\d.,]/g, ""));
+  };
+
+  const resetDiscount = () => {
+    setDiscountValue("");
+    setDiscountOpen(false);
+  };
+
   const handleCheckout = () => {
     setError("");
-    const result = checkout(method, paid);
+    const result = checkout(
+      method,
+      paid,
+      discount > 0
+        ? { type: discountType, value: rawValue, amount: discount }
+        : undefined
+    );
     if (!result.ok) {
       setError(result.error);
       return;
     }
     setCashStr("");
     setMethod("Tunai");
+    resetDiscount();
     onSuccess(result.transaction);
   };
 
@@ -174,6 +209,15 @@ export default function CartPanel({ onClose, onSuccess }: CartPanelProps) {
             <span>Subtotal</span>
             <span className="font-semibold tabular-nums">{formatRupiah(subtotal)}</span>
           </div>
+          {discount > 0 && (
+            <div className="flex justify-between font-semibold text-emerald-600">
+              <span>
+                Diskon
+                {discountType === "percent" ? ` (${Math.min(rawValue, 100)}%)` : ""}
+              </span>
+              <span className="tabular-nums">-{formatRupiah(discount)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-stone-600">
             <span>Pajak (PPN {settings.taxRate}%)</span>
             <span className="font-semibold tabular-nums">{formatRupiah(tax)}</span>
@@ -182,6 +226,97 @@ export default function CartPanel({ onClose, onSuccess }: CartPanelProps) {
             <span>Total Bayar</span>
             <span className="tabular-nums text-[var(--color-terracotta)]">{formatRupiah(total)}</span>
           </div>
+        </div>
+
+        <div className="mt-4">
+          <div className="mb-2 flex items-center justify-between">
+            <button
+              onClick={() => setDiscountOpen((o) => !o)}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--color-terracotta)] transition hover:opacity-80"
+              aria-expanded={discountOpen}
+            >
+              <Tag className="h-3.5 w-3.5" />
+              Diskon / Promo
+            </button>
+            {discount > 0 && (
+              <button
+                onClick={resetDiscount}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-stone-400 transition hover:text-red-600"
+              >
+                <RotateCcw className="h-3 w-3" /> Hapus diskon
+              </button>
+            )}
+          </div>
+
+          {discountOpen && (
+            <div className="space-y-2.5 rounded-xl border border-dashed border-[var(--color-terracotta)]/40 bg-white p-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wide text-stone-500">
+                  Jenis
+                </span>
+                <div className="ml-auto flex rounded-lg border border-stone-200 bg-stone-100 p-0.5">
+                  {(["percent", "nominal"] as DiscountType[]).map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => {
+                        setDiscountType(t);
+                        setDiscountValue("");
+                      }}
+                      className={`rounded-md px-3 py-1 text-xs font-bold transition ${
+                        discountType === t
+                          ? "bg-[var(--color-terracotta)] text-white shadow"
+                          : "text-stone-500 hover:text-stone-700"
+                      }`}
+                    >
+                      {t === "percent" ? "%" : "Rp"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="relative">
+                {discountType === "nominal" && (
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-stone-400">
+                    Rp
+                  </span>
+                )}
+                <input
+                  inputMode="decimal"
+                  value={discountValue}
+                  onChange={(e) => handleDiscountChange(e.target.value)}
+                  placeholder={
+                    discountType === "percent"
+                      ? "Masukkan persen diskon, cth: 10"
+                      : "Masukkan nominal diskon, cth: 5000"
+                  }
+                  className={`w-full rounded-lg border-2 border-stone-200 bg-white py-2 text-sm font-bold tabular-nums text-stone-800 outline-none transition focus:border-[var(--color-terracotta)] ${
+                    discountType === "nominal" ? "pl-9 pr-3" : "px-3"
+                  }`}
+                />
+              </div>
+
+              {discountType === "percent" && presets.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {presets.map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setDiscountValue(String(v))}
+                      className="rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-600 transition hover:border-amber-300 hover:bg-amber-50"
+                    >
+                      {v}%
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <p className="flex items-center gap-1.5 text-[11px] text-stone-400">
+                <Percent className="h-3 w-3" />
+                Potongan diskon berlaku sebelum PPN. Preset bisa dikustom di menu Pengaturan.
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="mt-4">

@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Croissant, X } from "lucide-react";
+import { X } from "lucide-react";
 import type { ViewKey } from "@/lib/types";
 import { StoreProvider } from "@/context/StoreContext";
+import BrandLogo from "./brand/BrandLogo";
 import Sidebar from "./layout/Sidebar";
 import Topbar from "./layout/Topbar";
 import BottomNav from "./layout/BottomNav";
@@ -34,11 +35,9 @@ export default function AppShell() {
             <div className="relative flex h-full w-72 flex-col bg-[var(--color-choco)] text-[var(--color-cream)] shadow-2xl">
               <div className="flex items-center justify-between border-b border-white/10 px-5 py-5">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-[var(--color-terracotta)] text-white">
-                    <Croissant className="h-5 w-5" />
-                  </div>
+                  <BrandLogo className="h-10 w-10 shrink-0" />
                   <div>
-                    <p className="font-extrabold leading-tight">HaiLai&apos;s Bakery</p>
+                    <p className="font-extrabold leading-tight">HaiLai&apos;s Bakery &amp; Cafe</p>
                     <p className="text-xs text-amber-200/80">All-in-One POS &amp; Catalog</p>
                   </div>
                 </div>

@@ -1,16 +1,16 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Scan Barcode - HaiLai's Bakery</title>
+<title>Scan Barcode - HaiLai's Bakery and Cafe</title>
 <style>
   :root {
-    --cream: #faf6ef;
-    --crust: #d8d0c5;
-    --terracotta: #b15c45;
-    --amber: #d9a441;
-    --caramel: #b08452;
+    --cream: #fdf7ec;
+    --crust: #f2e1c6;
+    --terracotta: #bd6a55;
+    --amber: #e6c07d;
+    --caramel: #d9ab6a;
     --ink: #292524;
     --muted: #8a7f72;
     --line: #e8e1d4;
@@ -39,7 +39,7 @@
   .brand { display: flex; align-items: center; gap: 12px; }
   .logo {
     width: 46px; height: 46px; border-radius: 13px;
-    background: linear-gradient(135deg, #f0b429, var(--terracotta));
+    background: linear-gradient(135deg, #f0d6a2, var(--terracotta));
     color: #fff; display: flex; align-items: center; justify-content: center;
     box-shadow: 0 4px 12px rgba(177, 92, 69, .35);
     flex-shrink: 0;
@@ -85,7 +85,7 @@
     background: #fff;
   }
   .scan-row button {
-    background: linear-gradient(135deg, var(--terracotta), #a04f3a);
+    background: linear-gradient(135deg, var(--terracotta), #bd6f4b);
     color: #fff; border: none;
     padding: 14px 22px; border-radius: 12px;
     font-size: 15px; font-weight: 800; cursor: pointer;
@@ -94,6 +94,36 @@
   }
   .scan-row button:hover { opacity: .9; }
   .hint { margin: 10px 2px 0; font-size: 12px; color: var(--muted); }
+
+  button {
+    transition: transform .16s ease, filter .16s ease, background-color .2s ease, color .2s ease, border-color .2s ease, box-shadow .2s ease, opacity .2s ease;
+  }
+  button:not(:disabled):hover { filter: brightness(1.06); }
+  button:not(:disabled):active {
+    animation: scan-press .4s cubic-bezier(.22, 1, .36, 1);
+  }
+  @keyframes scan-press {
+    0% { transform: scale(1); }
+    30% { transform: scale(.88); }
+    55% { transform: scale(1.05); }
+    75% { transform: scale(.97); }
+    100% { transform: scale(1); }
+  }
+  .spark-holder {
+    position: fixed; inset: 0; pointer-events: none; z-index: 9999; overflow: hidden;
+  }
+  .spark {
+    position: absolute; border-radius: 9999px;
+    animation: spark-fly .56s cubic-bezier(.18, .82, .34, 1.12) forwards;
+    will-change: transform, opacity;
+  }
+  @keyframes spark-fly {
+    0% { transform: translate(-50%, -50%) scale(.5); opacity: 1; }
+    100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+  }
 
   .stats {
     display: grid;
@@ -193,7 +223,7 @@
         </svg>
       </div>
       <div>
-        <h1>HaiLai's Bakery</h1>
+        <h1>HaiLai's Bakery &amp; Cafe</h1>
         <p>Kasir Scan Barcode</p>
       </div>
     </div>
@@ -446,6 +476,35 @@ renderTable();
 tickClock();
 setInterval(tickClock, 1000);
 inputBarcode.focus();
+
+(function () {
+  var holder = document.createElement("div");
+  holder.className = "spark-holder";
+  document.body.appendChild(holder);
+  var colors = ["#bd6a55", "#d9a359", "#fdf7ec", "#e7bf7b", "#ffffff"];
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  document.addEventListener("pointerdown", function (e) {
+    if (e.button !== 0 || reduced) return;
+    var b = e.target.closest ? e.target.closest("button") : null;
+    if (!b || b.disabled) return;
+    for (var i = 0; i < 9; i++) {
+      var s = document.createElement("span");
+      s.className = "spark";
+      var size = 4 + Math.random() * 6;
+      var ang = Math.random() * Math.PI * 2;
+      var dist = 28 + Math.random() * 50;
+      s.style.left = e.clientX + "px";
+      s.style.top = e.clientY + "px";
+      s.style.width = size + "px";
+      s.style.height = size + "px";
+      s.style.setProperty("--dx", Math.cos(ang) * dist + "px");
+      s.style.setProperty("--dy", Math.sin(ang) * dist - 16 + "px");
+      s.style.backgroundColor = colors[(Math.random() * colors.length) | 0];
+      holder.appendChild(s);
+      setTimeout(function () { s.remove(); }, 700);
+    }
+  }, true);
+})();
 </script>
 
 </body>

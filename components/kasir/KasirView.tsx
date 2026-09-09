@@ -171,7 +171,7 @@ export default function KasirView() {
         </div>
       </div>
 
-      <div className="hidden w-[400px] shrink-0 border-l border-stone-200 bg-white lg:block">
+      <div className="sticky top-0 hidden h-[100dvh] w-[400px] shrink-0 overflow-hidden border-l border-stone-200 bg-white shadow-2xl shadow-stone-200/50 lg:block">
         <CartPanel onSuccess={(t) => setReceipt(t)} />
       </div>
 
@@ -194,7 +194,7 @@ export default function KasirView() {
         <div className="fixed inset-0 z-40 flex lg:hidden">
           <div className="absolute inset-0 bg-stone-900/60" onClick={() => setCartOpen(false)} aria-hidden />
           <div className="relative ml-auto flex h-full w-full max-w-md flex-col bg-white shadow-2xl">
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-hidden">
               <CartPanel onClose={() => setCartOpen(false)} onSuccess={(t) => { setCartOpen(false); setReceipt(t); }} />
             </div>
           </div>

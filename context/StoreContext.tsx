@@ -17,6 +17,7 @@ import type {
   Product,
   StoreSettings,
   Transaction,
+  TransactionDiscount,
 } from "@/lib/types";
 import { STORAGE_KEYS } from "@/lib/constants";
 import {
@@ -26,6 +27,7 @@ import {
   INITIAL_TRANSACTIONS,
 } from "@/lib/mock-data";
 import { generateTransactionId, workingDateObject } from "@/lib/format";
+import { applyThemeVars, BAKERY_THEME } from "@/lib/color";
 
 function loadFromStorage<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -61,7 +63,11 @@ interface StoreContextValue {
   updateCartQty: (productId: string, delta: number) => void;
   removeFromCart: (productId: string) => void;
   clearCart: () => void;
-  checkout: (method: PaymentMethod, cashReceived: number) => CheckoutResult;
+  checkout: (
+    method: PaymentMethod,
+    cashReceived: number,
+    discount?: TransactionDiscount
+  ) => CheckoutResult;
   addProduct: (data: Omit<Product, "id">) => void;
   updateProduct: (id: string, patch: Partial<Omit<Product, "id">>) => void;
   deleteProduct: (id: string) => void;
@@ -115,6 +121,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     persist(STORAGE_KEYS.reviews, reviews);
   }, [reviews, hydrated]);
 
+  // Apply the user's color theme to the CSS custom properties used by the UI.
+  // Runs on mount (after persisted settings load) and whenever the theme changes.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    applyThemeVars(settings.theme ?? BAKERY_THEME);
+  }, [settings?.theme]);
+
   const addToCart = useCallback(
     (productId: string) => {
       setCart((prev) => {
@@ -161,7 +174,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const clearCart = useCallback(() => setCart([]), []);
 
   const checkout = useCallback(
-    (method: PaymentMethod, cashReceived: number): CheckoutResult => {
+    (method: PaymentMethod, cashReceived: number, discount?: TransactionDiscount): CheckoutResult => {
       const items = cart;
       if (items.length === 0) {
         return { ok: false, error: "Keranjang masih kosong." };
@@ -181,8 +194,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
 
       const subtotal = items.reduce((sum, i) => sum + i.price * i.qty, 0);
-      const tax = Math.round((subtotal * settings.taxRate) / 100);
-      const total = subtotal + tax;
+      const discountAmount =
+        discount && Number.isFinite(discount.amount)
+          ? Math.min(Math.max(0, Math.round(discount.amount)), subtotal)
+          : 0;
+      const taxable = subtotal - discountAmount;
+      const tax = Math.round((taxable * settings.taxRate) / 100);
+      const total = taxable + tax;
       const paid = method === "Tunai" ? Math.max(0, cashReceived) : total;
       const change = paid - total;
 
@@ -204,6 +222,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           subtotal: i.price * i.qty,
         })),
         subtotal,
+        discount: discountAmount > 0 ? discountAmount : undefined,
+        discountType:
+          discountAmount > 0 && discount ? discount.type : undefined,
+        discountValue:
+          discountAmount > 0 && discount && Number.isFinite(discount.value)
+            ? discount.type === "percent"
+              ? Math.min(Math.max(0, Math.round(discount.value)), 100)
+              : Math.max(0, Math.round(discount.value))
+            : undefined,
         tax,
         total,
         paymentMethod: method,

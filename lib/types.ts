@@ -6,6 +6,14 @@ export type PaymentMethod = "Tunai" | "QRIS" | "Kartu Debit";
 
 export const PAYMENT_METHODS: PaymentMethod[] = ["Tunai", "QRIS", "Kartu Debit"];
 
+export type DiscountType = "percent" | "nominal";
+
+export interface TransactionDiscount {
+  type: DiscountType;
+  value: number;
+  amount: number;
+}
+
 export type StockStatus = "Aman" | "Hampir Habis" | "Habis";
 
 export interface Product {
@@ -41,11 +49,22 @@ export interface Transaction {
   date: string;
   items: TransactionItem[];
   subtotal: number;
+  discount?: number;
+  discountType?: DiscountType;
+  discountValue?: number;
   tax: number;
   total: number;
   paymentMethod: PaymentMethod;
   cashReceived: number;
   change: number;
+}
+
+export interface ColorTheme {
+  id: string;
+  primary: string;
+  secondary: string;
+  dark: string;
+  bg: string;
 }
 
 export interface StoreSettings {
@@ -55,6 +74,8 @@ export interface StoreSettings {
   taxRate: number;
   receiptFooter: string;
   workingDate?: string;
+  discountPresets?: number[];
+  theme?: ColorTheme;
 }
 
 export type CheckoutResult =

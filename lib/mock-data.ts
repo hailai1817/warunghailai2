@@ -1,5 +1,6 @@
 import type { CustomerReview, Product, StoreSettings, Transaction, PaymentMethod } from "./types";
 import { DEFAULT_IMAGE } from "./constants";
+import { BAKERY_THEME } from "./color";
 
 const img = (id: string) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=800&q=80`;
 
@@ -154,11 +155,13 @@ export const INITIAL_PRODUCTS: Product[] = [
 ];
 
 export const DEFAULT_SETTINGS: StoreSettings = {
-  storeName: "HaiLai's Bakery",
+  storeName: "HaiLai's Bakery and Cafe",
   address: "Jl. Melati Raya No. 88, Bandung",
   phone: "(022) 555-1234",
   taxRate: 10,
-  receiptFooter: "Terima kasih sudah berbelanja di HaiLai's Bakery. Sampai jumpa kembali!",
+  receiptFooter: "Terima kasih sudah berbelanja di HaiLai's Bakery and Cafe. Sampai jumpa kembali!",
+  discountPresets: [5, 10, 15, 20, 25],
+  theme: BAKERY_THEME,
 };
 
 const productById = (id: string): Product => {
@@ -180,7 +183,8 @@ function makeTransaction(
   hour: number,
   minute: number,
   items: SeedItem[],
-  method: PaymentMethod
+  method: PaymentMethod,
+  discountPercent = 0
 ): Transaction {
   const date = new Date();
   date.setDate(date.getDate() - dayOffset);
@@ -198,8 +202,10 @@ function makeTransaction(
   });
 
   const subtotal = lineItems.reduce((sum, i) => sum + i.subtotal, 0);
-  const tax = Math.round((subtotal * TAX_RATE) / 100);
-  const total = subtotal + tax;
+  const discount = Math.round((subtotal * discountPercent) / 100);
+  const taxable = subtotal - discount;
+  const tax = Math.round((taxable * TAX_RATE) / 100);
+  const total = taxable + tax;
   const cashReceived = method === "Tunai" ? Math.ceil(total / 50000) * 50000 : total;
 
   return {
@@ -207,6 +213,9 @@ function makeTransaction(
     date: date.toISOString(),
     items: lineItems,
     subtotal,
+    discount: discount > 0 ? discount : undefined,
+    discountType: discount > 0 ? "percent" : undefined,
+    discountValue: discount > 0 ? discountPercent : undefined,
     tax,
     total,
     paymentMethod: method,
@@ -217,12 +226,12 @@ function makeTransaction(
 
 export const INITIAL_TRANSACTIONS: Transaction[] = [
   makeTransaction(1, 0, 9, 12, [{ id: "P05", qty: 2 }, { id: "P13", qty: 1 }], "Tunai"),
-  makeTransaction(2, 0, 13, 45, [{ id: "P08", qty: 1 }, { id: "P11", qty: 2 }, { id: "P12", qty: 1 }], "QRIS"),
+  makeTransaction(2, 0, 13, 45, [{ id: "P08", qty: 1 }, { id: "P11", qty: 2 }, { id: "P12", qty: 1 }], "QRIS", 10),
   makeTransaction(3, 1, 10, 30, [{ id: "P01", qty: 3 }, { id: "P03", qty: 2 }], "Tunai"),
   makeTransaction(4, 1, 16, 5, [{ id: "P10", qty: 1 }, { id: "P09", qty: 4 }], "Kartu Debit"),
   makeTransaction(5, 2, 11, 20, [{ id: "P06", qty: 2 }, { id: "P13", qty: 2 }], "Tunai"),
   makeTransaction(6, 3, 8, 55, [{ id: "P07", qty: 3 }, { id: "P11", qty: 1 }], "QRIS"),
-  makeTransaction(7, 3, 15, 40, [{ id: "P02", qty: 5 }, { id: "P12", qty: 2 }], "Tunai"),
+  makeTransaction(7, 3, 15, 40, [{ id: "P02", qty: 5 }, { id: "P12", qty: 2 }], "Tunai", 15),
   makeTransaction(8, 5, 14, 10, [{ id: "P08", qty: 2 }, { id: "P01", qty: 2 }, { id: "P13", qty: 1 }], "Kartu Debit"),
 ];
 

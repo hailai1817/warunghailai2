@@ -1,9 +1,10 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { Croissant, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import type { ViewKey } from "@/lib/types";
 import { useStore } from "@/context/StoreContext";
+import BrandLogo from "@/components/brand/BrandLogo";
 
 interface TopbarProps {
   view: ViewKey;
@@ -60,8 +61,8 @@ export default function Topbar({ view, onOpenMenu, menuOpen, onCloseMenu }: Topb
             {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-[var(--color-terracotta)] text-white shadow lg:hidden">
-              <Croissant className="h-5 w-5" />
+            <div className="lg:hidden">
+              <BrandLogo className="h-10 w-10 drop-shadow" />
             </div>
             <div>
               <h1 className="text-base font-extrabold leading-tight text-stone-800 sm:text-lg">
