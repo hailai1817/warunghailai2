@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   BadgePercent,
   Check,
+  Cloud,
   Database,
   Download,
   Info,
@@ -12,12 +13,15 @@ import {
   Store,
   Trash2,
   RotateCcw,
+  Wifi,
 } from "lucide-react";
 import { useStore } from "@/context/StoreContext";
 import type { ColorTheme, StoreSettings } from "@/lib/types";
 import { DEFAULT_SETTINGS } from "@/lib/mock-data";
 import { BAKERY_THEME, THEME_PRESETS } from "@/lib/color";
 import { downloadFile } from "@/lib/format";
+import { hasFirebaseConfig } from "@/lib/firebase";
+import { cloudTestConnection, type CloudConnectionStatus } from "@/lib/firestore-service";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 export default function SettingsView() {
@@ -25,6 +29,9 @@ export default function SettingsView() {
     useStore();
   const [form, setForm] = useState<StoreSettings>(settings);
   const theme = settings.theme ?? DEFAULT_SETTINGS.theme ?? BAKERY_THEME;
+  const cloudEnabled = hasFirebaseConfig();
+  const [cloudStatus, setCloudStatus] = useState<CloudConnectionStatus | null>(null);
+  const [checkingCloud, setCheckingCloud] = useState(false);
   const [presetStr, setPresetStr] = useState(
     (settings.discountPresets && settings.discountPresets.length > 0
       ? settings.discountPresets
@@ -64,6 +71,14 @@ export default function SettingsView() {
     });
     setPresetStr(discountPresets.join(", "));
     showToast("Pengaturan berhasil disimpan.");
+  };
+
+  const handleTestCloud = async () => {
+    setCheckingCloud(true);
+    setCloudStatus(null);
+    const status = await cloudTestConnection();
+    setCloudStatus(status);
+    setCheckingCloud(false);
   };
 
   const handleExport = () => {
@@ -316,6 +331,67 @@ export default function SettingsView() {
             </div>
           </div>
         )}
+      </div>
+
+      <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm sm:p-6">
+        <div className="mb-5 flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-sky-700 text-white shadow">
+            <Cloud className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-base font-extrabold text-stone-800">Penyimpanan Data</h2>
+            <p className="text-xs text-stone-500">
+              Simpan data di Firebase Firestore secara request/response
+            </p>
+          </div>
+        </div>
+
+        {cloudEnabled ? (
+          <div className="mb-3 flex items-center gap-2 text-sm font-bold text-emerald-700">
+            <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+            Mode Cloud aktif
+            <span className="font-normal text-stone-400">(Firestore + cache lokal)</span>
+          </div>
+        ) : (
+          <div className="mb-3 flex items-center gap-2 text-sm font-bold text-amber-700">
+            <span className="flex h-2.5 w-2.5 rounded-full bg-amber-500" />
+            Mode Lokal aktif
+            <span className="font-normal text-stone-400">(Firebase belum dikonfigurasi)</span>
+          </div>
+        )}
+
+        <p className="mb-4 text-xs leading-relaxed text-stone-500">
+          Data (produk, transaksi, review, pengaturan) otomatis disimpan ke Firestore sebagai
+          sumber data utama, dengan cache localStorage sebagai cadangan saat offline. Selama
+          Firebase tidak dikonfigurasi, aplikasi tetap berjalan penuh dengan penyimpanan lokal.
+        </p>
+
+        <button
+          onClick={handleTestCloud}
+          disabled={checkingCloud}
+          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-sky-500 to-sky-700 px-4 py-2 text-xs font-extrabold text-white shadow transition hover:opacity-90"
+        >
+          <Wifi className="h-4 w-4" />
+          {checkingCloud ? "Menghubungkan..." : "Uji Koneksi Firebase"}
+        </button>
+
+        {cloudStatus && (
+          <p
+            className={`mt-3 rounded-xl border px-3 py-2 text-xs font-semibold ${
+              cloudStatus.connected
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : "border-amber-200 bg-amber-50 text-amber-800"
+            }`}
+          >
+            {cloudStatus.message}
+          </p>
+        )}
+
+        <ol className="mt-4 list-inside list-decimal space-y-1 text-xs text-stone-500">
+          <li>Cantumkan konfigurasi Firebase di file <code className="rounded bg-stone-100 px-1">.env.local</code> (sudah tersedia template placeholder).</li>
+          <li>Deploy aturan <code className="rounded bg-stone-100 px-1">firestore.rules</code>: <code className="rounded bg-stone-100 px-1">firebase deploy --only firestore</code>.</li>
+          <li>Jalankan ulang <code className="rounded bg-stone-100 px-1">npm run build</code> lalu buka aplikasi.</li>
+        </ol>
       </div>
 
       <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm sm:p-6">

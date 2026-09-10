@@ -28,6 +28,8 @@ import {
 } from "@/lib/mock-data";
 import { generateTransactionId, workingDateObject } from "@/lib/format";
 import { applyThemeVars, BAKERY_THEME } from "@/lib/color";
+import { hasFirebaseConfig } from "@/lib/firebase";
+import { cloudLoadAll, cloudSave } from "@/lib/firestore-service";
 
 function loadFromStorage<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -44,12 +46,30 @@ function loadFromStorage<T>(key: string, fallback: T): T {
 // On the file:// protocol some browsers (Chrome/Edge) throw a SecurityError on
 // any localStorage access. Persistence must never crash the app, so writes are
 // best-effort: the in-memory state keeps working, only saving is skipped.
-function persist(key: string, value: unknown): void {
+function persistLocal(key: string, value: unknown): void {
   try {
     window.localStorage.setItem(key, JSON.stringify(value));
   } catch {
     // storage unavailable — app still runs, data just won't survive reload
   }
+}
+
+// Debounced request/response sync to Firestore. Firestore is the source of
+// truth; localStorage stays as an offline/first-paint cache. No realtime
+// listeners: writes are explicit setDoc requests a moment after changes settle.
+const cloudTimers: Record<string, ReturnType<typeof setTimeout>> = {};
+function scheduleCloudSave(
+  key: "products" | "transactions" | "settings" | "reviews",
+  payload: unknown
+): void {
+  if (!hasFirebaseConfig()) return;
+  const existing = cloudTimers[key];
+  if (existing) clearTimeout(existing);
+  cloudTimers[key] = setTimeout(() => {
+    void (
+      cloudSave as unknown as (k: string, p: unknown) => Promise<boolean>
+    )(key, payload);
+  }, 700);
 }
 
 interface StoreContextValue {
@@ -59,6 +79,7 @@ interface StoreContextValue {
   settings: StoreSettings;
   reviews: CustomerReview[];
   hydrated: boolean;
+  cloudEnabled: boolean;
   addToCart: (productId: string) => void;
   updateCartQty: (productId: string, delta: number) => void;
   removeFromCart: (productId: string) => void;
@@ -101,24 +122,45 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
+  // One request/response round-trip after first render: pull the full dataset
+  // from Firestore and let the cloud version win over the local cache.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const cloud = await cloudLoadAll();
+      if (cancelled || cloud === null) return;
+      if (cloud.products !== undefined) setProducts(cloud.products);
+      if (cloud.transactions !== undefined) setTransactions(cloud.transactions);
+      setReviews(cloud.reviews ?? []);
+      if (cloud.settings) setSettings(cloud.settings);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
     if (!hydrated) return;
-    persist(STORAGE_KEYS.products, products);
+    persistLocal(STORAGE_KEYS.products, products);
+    scheduleCloudSave("products", products);
   }, [products, hydrated]);
 
   useEffect(() => {
     if (!hydrated) return;
-    persist(STORAGE_KEYS.transactions, transactions);
+    persistLocal(STORAGE_KEYS.transactions, transactions);
+    scheduleCloudSave("transactions", transactions);
   }, [transactions, hydrated]);
 
   useEffect(() => {
     if (!hydrated) return;
-    persist(STORAGE_KEYS.settings, settings);
+    persistLocal(STORAGE_KEYS.settings, settings);
+    scheduleCloudSave("settings", settings);
   }, [settings, hydrated]);
 
   useEffect(() => {
     if (!hydrated) return;
-    persist(STORAGE_KEYS.reviews, reviews);
+    persistLocal(STORAGE_KEYS.reviews, reviews);
+    scheduleCloudSave("reviews", reviews);
   }, [reviews, hydrated]);
 
   // Apply the user's color theme to the CSS custom properties used by the UI.
@@ -315,6 +357,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       settings,
       reviews,
       hydrated,
+      cloudEnabled: hasFirebaseConfig(),
       addToCart,
       updateCartQty,
       removeFromCart,
