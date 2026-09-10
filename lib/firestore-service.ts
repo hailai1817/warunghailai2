@@ -22,6 +22,11 @@ export interface CloudData {
 
 const SETTINGS_DOC = "store";
 
+// Firestore rejects undefined values. JSON round-trip drops undefined object
+// keys (and empty-array entries) so partial/legacy data never breaks a write.
+const cleanForFirestore = (value: unknown): unknown =>
+  JSON.parse(JSON.stringify(value));
+
 // Request/response only: every call below is an explicit get/set Firestore
 // request. No onSnapshot() realtime listeners are used anywhere.
 export async function cloudLoadAll(): Promise<CloudData | null> {
@@ -64,7 +69,7 @@ export async function cloudSave(
   if (!db) return false;
   try {
     if (key === "settings") {
-      await setDoc(doc(db, "settings", SETTINGS_DOC), payload as StoreSettings);
+      await setDoc(doc(db, "settings", SETTINGS_DOC), cleanForFirestore(payload) as StoreSettings);
       return true;
     }
     const ref = collection(db, key);
@@ -72,7 +77,7 @@ export async function cloudSave(
     const batch = writeBatch(db);
     const keptIds = new Set<string>();
     for (const item of items) {
-      batch.set(doc(ref, item.id), item);
+      batch.set(doc(ref, item.id), cleanForFirestore(item));
       keptIds.add(item.id);
     }
     const existing = await getDocs(ref);

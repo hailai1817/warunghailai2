@@ -123,15 +123,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // One request/response round-trip after first render: pull the full dataset
-  // from Firestore and let the cloud version win over the local cache.
+  // from Firestore. The cloud version wins only when it actually has data; an
+  // empty/never-populated cloud keeps the local seed data and lets the save
+  // effects upload it on the first run.
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       const cloud = await cloudLoadAll();
       if (cancelled || cloud === null) return;
-      if (cloud.products !== undefined) setProducts(cloud.products);
-      if (cloud.transactions !== undefined) setTransactions(cloud.transactions);
-      setReviews(cloud.reviews ?? []);
+      if (cloud.products && cloud.products.length > 0) setProducts(cloud.products);
+      if (cloud.transactions && cloud.transactions.length > 0) {
+        setTransactions(cloud.transactions);
+      }
+      if (cloud.reviews && cloud.reviews.length > 0) setReviews(cloud.reviews);
       if (cloud.settings) setSettings(cloud.settings);
     })();
     return () => {
