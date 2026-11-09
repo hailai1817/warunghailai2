@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="id">
 <head>
 <meta charset="UTF-8">
@@ -297,11 +297,33 @@
 <script>
 "use strict";
 
-const MASTER_DATA = [
+const FALLBACK_MASTER = [
   { barcode: "8990037282383", nama: "Macha Cakeroll", harga: 50000 },
   { barcode: "202506140043", nama: "Mango Cake", harga: 30000 },
   { barcode: "6975830562186", nama: "Pure Milk", harga: 12000 }
 ];
+
+function loadMasterData() {
+  try {
+    const raw = localStorage.getItem("hailai.products.v1");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const withBarcodes = parsed
+          .filter(function (p) { return Boolean(p.barcode); })
+          .map(function (p) {
+            return { barcode: String(p.barcode), nama: p.name, harga: p.price };
+          });
+        if (withBarcodes.length > 0) return withBarcodes;
+      }
+    }
+  } catch (e) {
+    // fallback to default
+  }
+  return FALLBACK_MASTER;
+}
+
+const MASTER_DATA = loadMasterData();
 
 const STORAGE_KEY = "hailai.barcode.scan.v1";
 

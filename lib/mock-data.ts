@@ -3,6 +3,7 @@ import { DEFAULT_IMAGE } from "./constants";
 import { BAKERY_THEME } from "./color";
 
 const img = (id: string) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=800&q=80`;
+const avatarImg = (id: string) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=200&q=80`;
 
 export const INITIAL_PRODUCTS: Product[] = [
   {
@@ -249,6 +250,7 @@ export const INITIAL_REVIEWS: CustomerReview[] = [
     id: "R01",
     customerName: "Siti Rahayu",
     rating: 5,
+    avatar: avatarImg("photo-1544005313-94ddf0286df2"),
     comment: "Roti sobek coklatnya lembut banget dan isinya melimpah. Anak-anak sampai minta lagi!",
     date: reviewDate(0, 11, 24),
   },
@@ -256,6 +258,7 @@ export const INITIAL_REVIEWS: CustomerReview[] = [
     id: "R02",
     customerName: "Budi Santoso",
     rating: 4,
+    avatar: avatarImg("photo-1507003211169-0a1dd7228f2d"),
     comment: "Croissant butter-nya renyah dan wangi. Harga masih wajar untuk kualitas sebaik ini.",
     date: reviewDate(1, 15, 40),
   },
@@ -263,6 +266,7 @@ export const INITIAL_REVIEWS: CustomerReview[] = [
     id: "R03",
     customerName: "Dewi Lestari",
     rating: 5,
+    avatar: avatarImg("photo-1494790108377-be9c29b29330"),
     comment: "Birthday cake custom-nya cantik dan tidak terlalu manis. Pelayanannya ramah dan tepat waktu.",
     date: reviewDate(2, 10, 5),
   },
@@ -270,6 +274,7 @@ export const INITIAL_REVIEWS: CustomerReview[] = [
     id: "R04",
     customerName: "Andi Wijaya",
     rating: 3,
+    avatar: avatarImg("photo-1500648767791-00dcc994a43e"),
     comment: "Iced americanonya enak, tapi antriannya lumayan lama pas jam makan siang.",
     date: reviewDate(3, 13, 15),
   },
@@ -277,6 +282,7 @@ export const INITIAL_REVIEWS: CustomerReview[] = [
     id: "R05",
     customerName: "Maya Anggraini",
     rating: 5,
+    avatar: avatarImg("photo-1534528741775-53994a69daeb"),
     comment: "Es teh melatinya segar dan cocok buat nemenin ngobrol sore. Recomended!",
     date: reviewDate(4, 16, 50),
   },
@@ -284,6 +290,7 @@ export const INITIAL_REVIEWS: CustomerReview[] = [
     id: "R06",
     customerName: "Rizky Pratama",
     rating: 2,
+    avatar: avatarImg("photo-1519085360753-af0119f7cbe7"),
     comment: "Donat gulanya stok habis terus setiap kali saya datang. Semoga sering di-restock.",
     date: reviewDate(5, 9, 30),
   },
@@ -291,6 +298,7 @@ export const INITIAL_REVIEWS: CustomerReview[] = [
     id: "R07",
     customerName: "Nurul Hidayah",
     rating: 5,
+    avatar: avatarImg("photo-1438761681033-6461ffad8d80"),
     comment: "Red velvet cupcake-nya juara, cream cheese frosting-nya pas banget. Pasti balik lagi!",
     date: reviewDate(6, 14, 20),
   },
@@ -298,6 +306,7 @@ export const INITIAL_REVIEWS: CustomerReview[] = [
     id: "R08",
     customerName: "Fajar Nugroho",
     rating: 4,
+    avatar: avatarImg("photo-1506794778202-cad84cf45f1d"),
     comment: "Kemasan bagus, roti tetap segar sampai rumah. Semoga ke depannya ada varian baru.",
     date: reviewDate(7, 12, 10),
   },

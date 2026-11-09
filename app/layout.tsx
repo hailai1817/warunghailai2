@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ClickSparks from "@/components/ui/ClickSparks";
@@ -19,7 +20,7 @@ export const metadata: Metadata = {
     "Aplikasi Point of Sale (POS) & Katalog all-in-one untuk Bakery dan Cafe HaiLai's Bakery and Cafe.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="id"

@@ -48,12 +48,16 @@ export default function SalesChart({ transactions, days = 7, today }: SalesChart
           <p className="text-xs text-stone-500">Total pendapatan harian</p>
         </div>
         <span className="text-xs font-semibold text-stone-400">
-          {data[data.length - 1].date.toLocaleDateString("id-ID", {
+          {data[0]?.date.toLocaleDateString("id-ID", {
             day: "numeric",
-            month: "long",
+            month: "short",
           })}
           {" - "}
-          {todayLabel.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
+          {todayLabel.toLocaleDateString("id-ID", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          })}
         </span>
       </div>
 

@@ -25,7 +25,7 @@ const EMPTY_FORM = {
 };
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const MAX_IMAGE_WIDTH = 800;
+const MAX_IMAGE_WIDTH = 480;
 
 function initForm(product: Product | null): typeof EMPTY_FORM {
   if (!product) return EMPTY_FORM;
@@ -49,7 +49,7 @@ function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
-function resizeImage(dataUrl: string, maxWidth = MAX_IMAGE_WIDTH, quality = 0.82): Promise<string> {
+function resizeImage(dataUrl: string, maxWidth = MAX_IMAGE_WIDTH, quality = 0.72): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new window.Image();
     img.onload = () => {

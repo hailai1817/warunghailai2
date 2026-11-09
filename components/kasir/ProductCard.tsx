@@ -26,6 +26,8 @@ export default function ProductCard({ product, inCartQty, onAdd }: ProductCardPr
   const [imgError, setImgError] = useState(false);
   const status = getStockStatus(product.stock);
   const outOfStock = status === "Habis";
+  const isMaxInCart = inCartQty >= product.stock;
+  const isActionDisabled = outOfStock || isMaxInCart;
 
   return (
     <div className="group flex flex-col overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
@@ -85,15 +87,15 @@ export default function ProductCard({ product, inCartQty, onAdd }: ProductCardPr
           </p>
           <button
             onClick={() => onAdd(product.id)}
-            disabled={outOfStock}
+            disabled={isActionDisabled}
             className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition ${
-              outOfStock
+              isActionDisabled
                 ? "cursor-not-allowed bg-stone-100 text-stone-400"
                 : "bg-gradient-to-r from-amber-500 to-[var(--color-terracotta)] text-white shadow hover:opacity-90 active:scale-95"
             }`}
           >
             <Plus className="h-4 w-4" />
-            {inCartQty > 0 ? "Tambah Lagi" : "Tambah"}
+            {outOfStock ? "Habis" : isMaxInCart ? "Maksimal" : inCartQty > 0 ? "Tambah Lagi" : "Tambah"}
           </button>
         </div>
       </div>

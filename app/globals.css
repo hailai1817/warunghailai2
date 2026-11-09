@@ -199,11 +199,11 @@ button:not(:disabled):active {
     box-shadow: none !important;
   }
 
-  #report-print-area,
-  #report-print-area * {
+  body:not(:has(#receipt-print-area)) #report-print-area,
+  body:not(:has(#receipt-print-area)) #report-print-area * {
     visibility: visible;
   }
-  #report-print-area {
+  body:not(:has(#receipt-print-area)) #report-print-area {
     display: block !important;
     position: absolute;
     left: 0;

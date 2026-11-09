@@ -1,10 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Image from "next/image";
 import {
   Download,
   MessageSquare,
   MessageSquarePlus,
+  Pencil,
   Search,
   Star,
   ThumbsDown,
@@ -27,11 +29,57 @@ function formatAverage(avg: number): string {
   return avg.toLocaleString("id-ID", { maximumFractionDigits: 1 });
 }
 
+function ReviewAvatar({
+  name,
+  avatar,
+  rating,
+}: {
+  name: string;
+  avatar?: string;
+  rating: number;
+}) {
+  const [imgFailed, setImgFailed] = useState(false);
+
+  const avatarColor = (r: number) =>
+    r >= 4
+      ? "bg-gradient-to-br from-amber-400 to-[var(--color-terracotta)]"
+      : r === 3
+        ? "bg-gradient-to-br from-stone-400 to-stone-500"
+        : "bg-gradient-to-br from-stone-500 to-stone-700";
+
+  if (avatar && !imgFailed) {
+    return (
+      <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full border-2 border-[var(--color-crust)] bg-white shadow">
+        <Image
+          src={avatar}
+          alt={name}
+          fill
+          sizes="44px"
+          unoptimized
+          className="object-cover"
+          onError={() => setImgFailed(true)}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-base font-extrabold text-white shadow ${avatarColor(
+        rating
+      )}`}
+    >
+      {name.charAt(0).toUpperCase()}
+    </div>
+  );
+}
+
 export default function ReviewsView() {
-  const { reviews, addReview, deleteReview } = useStore();
+  const { reviews, addReview, updateReview, deleteReview } = useStore();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<RatingFilter>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<CustomerReview | null>(null);
   const [deleting, setDeleting] = useState<CustomerReview | null>(null);
 
   const filtered = useMemo(() => {
@@ -49,24 +97,41 @@ export default function ReviewsView() {
   }, [reviews, search, filter]);
 
   const stats = useMemo(() => {
-    if (filtered.length === 0) {
+    if (reviews.length === 0) {
       return { avg: 0, total: 0, five: 0, low: 0 };
     }
-    const sum = filtered.reduce((acc, r) => acc + r.rating, 0);
+    const sum = reviews.reduce((acc, r) => acc + r.rating, 0);
     return {
-      avg: sum / filtered.length,
-      total: filtered.length,
-      five: filtered.filter((r) => r.rating === 5).length,
-      low: filtered.filter((r) => r.rating <= 3).length,
+      avg: sum / reviews.length,
+      total: reviews.length,
+      five: reviews.filter((r) => r.rating === 5).length,
+      low: reviews.filter((r) => r.rating <= 3).length,
     };
-  }, [filtered]);
+  }, [reviews]);
+
+  const handleSaveReview = (data: Omit<CustomerReview, "id" | "date">) => {
+    if (editing) {
+      updateReview(editing.id, data);
+    } else {
+      addReview(data);
+    }
+    setFormOpen(false);
+    setEditing(null);
+  };
 
   const handleExportCSV = () => {
     const rows: (string | number)[][] = [
-      ["No", "Nama Pelanggan", "Rating", "Komentar", "Tanggal"],
+      ["No", "Nama Pelanggan", "Foto Profil", "Rating", "Komentar", "Tanggal"],
     ];
     filtered.forEach((r, idx) => {
-      rows.push([idx + 1, r.customerName, r.rating, r.comment, formatDateTime(r.date)]);
+      rows.push([
+        idx + 1,
+        r.customerName,
+        r.avatar ? "Ada" : "Default",
+        r.rating,
+        r.comment,
+        formatDateTime(r.date),
+      ]);
     });
     const filename = `ulasan-hailai-bakery-${new Date().toISOString().slice(0, 10)}.csv`;
     downloadFile(filename, "\uFEFF" + toCSV(rows), "text/csv");
@@ -78,13 +143,6 @@ export default function ReviewsView() {
         ? "bg-[var(--color-choco)] text-[var(--color-cream)] shadow"
         : "border border-stone-200 bg-white text-stone-600 hover:border-amber-300"
     }`;
-
-  const avatarColor = (rating: number) =>
-    rating >= 4
-      ? "bg-gradient-to-br from-amber-400 to-[var(--color-terracotta)]"
-      : rating === 3
-        ? "bg-gradient-to-br from-stone-400 to-stone-500"
-        : "bg-gradient-to-br from-stone-500 to-stone-700";
 
   return (
     <div className="space-y-5 p-4 sm:p-6">
@@ -160,7 +218,10 @@ export default function ReviewsView() {
             Export CSV
           </button>
           <button
-            onClick={() => setFormOpen(true)}
+            onClick={() => {
+              setEditing(null);
+              setFormOpen(true);
+            }}
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[var(--color-terracotta)] to-amber-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-orange-200 transition hover:opacity-90"
           >
             <MessageSquarePlus className="h-4 w-4" />
@@ -177,24 +238,36 @@ export default function ReviewsView() {
               className="flex flex-col rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm transition hover:shadow-md"
             >
               <div className="flex items-start gap-3">
-                <div
-                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-base font-extrabold text-white shadow ${avatarColor(review.rating)}`}
-                >
-                  {review.customerName.charAt(0).toUpperCase()}
-                </div>
+                <ReviewAvatar
+                  name={review.customerName}
+                  avatar={review.avatar}
+                  rating={review.rating}
+                />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="truncate font-bold text-stone-800">{review.customerName}</p>
                       <p className="text-xs text-stone-400">{formatDateTime(review.date)}</p>
                     </div>
-                    <button
-                      onClick={() => setDeleting(review)}
-                      aria-label={`Hapus ulasan ${review.customerName}`}
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-stone-200 text-stone-400 transition hover:border-red-300 hover:bg-red-50 hover:text-red-600"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => {
+                          setEditing(review);
+                          setFormOpen(true);
+                        }}
+                        aria-label={`Edit ulasan ${review.customerName}`}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-stone-200 text-stone-400 transition hover:border-amber-300 hover:bg-amber-50 hover:text-[var(--color-terracotta)]"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => setDeleting(review)}
+                        aria-label={`Hapus ulasan ${review.customerName}`}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-stone-200 text-stone-400 transition hover:border-red-300 hover:bg-red-50 hover:text-red-600"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                   <div className="mt-1.5 flex items-center gap-2">
                     <StarRating value={review.rating} />
@@ -223,7 +296,10 @@ export default function ReviewsView() {
           }
           action={
             <button
-              onClick={() => setFormOpen(true)}
+              onClick={() => {
+                setEditing(null);
+                setFormOpen(true);
+              }}
               className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-terracotta)] px-4 py-2.5 text-sm font-bold text-white shadow transition hover:opacity-90"
             >
               <MessageSquarePlus className="h-4 w-4" />
@@ -233,7 +309,16 @@ export default function ReviewsView() {
         />
       )}
 
-      {formOpen && <ReviewFormModal onClose={() => setFormOpen(false)} onSave={addReview} />}
+      {formOpen && (
+        <ReviewFormModal
+          review={editing}
+          onClose={() => {
+            setFormOpen(false);
+            setEditing(null);
+          }}
+          onSave={handleSaveReview}
+        />
+      )}
 
       <ConfirmDialog
         open={deleting !== null}

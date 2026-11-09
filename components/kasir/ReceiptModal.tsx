@@ -22,10 +22,10 @@ export default function ReceiptModal({ transaction, onClose }: ReceiptModalProps
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center sm:p-4 print:static print:p-0 print:m-0 print:block">
       <div className="no-print absolute inset-0 bg-stone-900/70 backdrop-blur-sm" onClick={onClose} aria-hidden />
-      <div className="no-print relative z-10 flex max-h-[94vh] w-full max-w-sm flex-col overflow-hidden rounded-t-3xl bg-stone-100 shadow-2xl sm:rounded-3xl">
-        <div className="flex items-center justify-between border-b border-stone-200 bg-white px-5 py-4">
+      <div className="relative z-10 flex max-h-[94vh] w-full max-w-sm flex-col overflow-hidden rounded-t-3xl bg-stone-100 shadow-2xl sm:rounded-3xl print:max-h-none print:w-auto print:max-w-none print:overflow-visible print:bg-transparent print:shadow-none print:rounded-none">
+        <div className="no-print flex items-center justify-between border-b border-stone-200 bg-white px-5 py-4">
           <div>
             <h2 className="text-base font-extrabold text-stone-800">Struk Pembelian</h2>
             <p className="text-xs text-stone-500">Transaksi berhasil diproses</p>
@@ -37,7 +37,7 @@ export default function ReceiptModal({ transaction, onClose }: ReceiptModalProps
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto bg-stone-200/70 p-4 sm:p-6">
+        <div className="flex-1 overflow-y-auto bg-stone-200/70 p-4 sm:p-6 print:p-0 print:bg-transparent print:overflow-visible">
           <div
             id="receipt-print-area"
             className="receipt-paper mx-auto w-full max-w-[300px] bg-white px-4 py-5 font-mono text-[11px] leading-relaxed text-black shadow-lg"

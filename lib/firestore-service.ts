@@ -74,19 +74,42 @@ export async function cloudSave(
     }
     const ref = collection(db, key);
     const items = payload as Array<{ id: string }>;
-    const batch = writeBatch(db);
     const keptIds = new Set<string>();
+
+    // Prepare all set operations
+    type BatchOp =
+      | { type: "set"; id: string; data: unknown }
+      | { type: "delete"; id: string };
+
+    const ops: BatchOp[] = [];
     for (const item of items) {
-      batch.set(doc(ref, item.id), cleanForFirestore(item));
       keptIds.add(item.id);
+      ops.push({ type: "set", id: item.id, data: cleanForFirestore(item) });
     }
+
+    // Prepare delete operations for obsolete items
     const existing = await getDocs(ref);
     for (const snap of existing.docs) {
       if (!keptIds.has(snap.id)) {
-        batch.delete(doc(ref, snap.id));
+        ops.push({ type: "delete", id: snap.id });
       }
     }
-    await batch.commit();
+
+    // Firestore allows maximum 500 ops per batch. Use 400 to stay safely under limit.
+    const CHUNK_SIZE = 400;
+    for (let i = 0; i < ops.length; i += CHUNK_SIZE) {
+      const chunk = ops.slice(i, i + CHUNK_SIZE);
+      const batch = writeBatch(db);
+      for (const op of chunk) {
+        if (op.type === "set") {
+          batch.set(doc(ref, op.id), op.data as Record<string, unknown>);
+        } else {
+          batch.delete(doc(ref, op.id));
+        }
+      }
+      await batch.commit();
+    }
+
     return true;
   } catch {
     return false;

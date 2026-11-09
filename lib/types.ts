@@ -88,6 +88,7 @@ export interface CustomerReview {
   rating: number;
   comment: string;
   date: string;
+  avatar?: string;
 }
 
 export type ViewKey = "kasir" | "stok" | "laporan" | "ulasan" | "pengaturan";

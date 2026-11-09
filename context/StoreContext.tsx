@@ -80,7 +80,7 @@ interface StoreContextValue {
   reviews: CustomerReview[];
   hydrated: boolean;
   cloudEnabled: boolean;
-  addToCart: (productId: string) => void;
+  addToCart: (productId: string) => boolean;
   updateCartQty: (productId: string, delta: number) => void;
   removeFromCart: (productId: string) => void;
   clearCart: () => void;
@@ -93,6 +93,7 @@ interface StoreContextValue {
   updateProduct: (id: string, patch: Partial<Omit<Product, "id">>) => void;
   deleteProduct: (id: string) => void;
   addReview: (data: Omit<CustomerReview, "id" | "date">) => void;
+  updateReview: (id: string, patch: Partial<Omit<CustomerReview, "id">>) => void;
   deleteReview: (id: string) => void;
   updateSettings: (patch: Partial<StoreSettings>) => void;
   resetData: () => void;
@@ -103,6 +104,7 @@ const StoreContext = createContext<StoreContextValue | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
+  const [cloudReady, setCloudReady] = useState(false);
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
   const [settings, setSettings] = useState<StoreSettings>(DEFAULT_SETTINGS);
@@ -117,7 +119,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setProducts(loadFromStorage(STORAGE_KEYS.products, INITIAL_PRODUCTS));
     setTransactions(loadFromStorage(STORAGE_KEYS.transactions, INITIAL_TRANSACTIONS));
     setSettings(loadFromStorage(STORAGE_KEYS.settings, DEFAULT_SETTINGS));
-    setReviews(loadFromStorage(STORAGE_KEYS.reviews, INITIAL_REVIEWS));
+
+    // Merge default avatar pictures for reviews that don't have one yet
+    const loadedReviews = loadFromStorage(STORAGE_KEYS.reviews, INITIAL_REVIEWS);
+    const initialAvatarMap = new Map(INITIAL_REVIEWS.map((r) => [r.id, r.avatar]));
+    const mergedReviews = loadedReviews.map((r) => {
+      if (!r.avatar && initialAvatarMap.has(r.id)) {
+        return { ...r, avatar: initialAvatarMap.get(r.id) };
+      }
+      return r;
+    });
+    setReviews(mergedReviews);
+
     setHydrated(true);
     /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
@@ -129,14 +142,31 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const cloud = await cloudLoadAll();
-      if (cancelled || cloud === null) return;
-      if (cloud.products && cloud.products.length > 0) setProducts(cloud.products);
-      if (cloud.transactions && cloud.transactions.length > 0) {
-        setTransactions(cloud.transactions);
+      if (!hasFirebaseConfig()) {
+        setCloudReady(true);
+        return;
       }
-      if (cloud.reviews && cloud.reviews.length > 0) setReviews(cloud.reviews);
-      if (cloud.settings) setSettings(cloud.settings);
+      const cloud = await cloudLoadAll();
+      if (cancelled) return;
+      if (cloud !== null) {
+        if (cloud.products && cloud.products.length > 0) setProducts(cloud.products);
+        if (cloud.transactions && cloud.transactions.length > 0) {
+          setTransactions(cloud.transactions);
+        }
+        if (cloud.reviews && cloud.reviews.length > 0) {
+          const initialAvatarMap = new Map(INITIAL_REVIEWS.map((r) => [r.id, r.avatar]));
+          setReviews(
+            cloud.reviews.map((r) => {
+              if (!r.avatar && initialAvatarMap.has(r.id)) {
+                return { ...r, avatar: initialAvatarMap.get(r.id) };
+              }
+              return r;
+            })
+          );
+        }
+        if (cloud.settings) setSettings(cloud.settings);
+      }
+      setCloudReady(true);
     })();
     return () => {
       cancelled = true;
@@ -146,26 +176,30 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!hydrated) return;
     persistLocal(STORAGE_KEYS.products, products);
+    if (!cloudReady) return;
     scheduleCloudSave("products", products);
-  }, [products, hydrated]);
+  }, [products, hydrated, cloudReady]);
 
   useEffect(() => {
     if (!hydrated) return;
     persistLocal(STORAGE_KEYS.transactions, transactions);
+    if (!cloudReady) return;
     scheduleCloudSave("transactions", transactions);
-  }, [transactions, hydrated]);
+  }, [transactions, hydrated, cloudReady]);
 
   useEffect(() => {
     if (!hydrated) return;
     persistLocal(STORAGE_KEYS.settings, settings);
+    if (!cloudReady) return;
     scheduleCloudSave("settings", settings);
-  }, [settings, hydrated]);
+  }, [settings, hydrated, cloudReady]);
 
   useEffect(() => {
     if (!hydrated) return;
     persistLocal(STORAGE_KEYS.reviews, reviews);
+    if (!cloudReady) return;
     scheduleCloudSave("reviews", reviews);
-  }, [reviews, hydrated]);
+  }, [reviews, hydrated, cloudReady]);
 
   // Apply the user's color theme to the CSS custom properties used by the UI.
   // Runs on mount (after persisted settings load) and whenever the theme changes.
@@ -175,12 +209,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [settings?.theme]);
 
   const addToCart = useCallback(
-    (productId: string) => {
+    (productId: string): boolean => {
+      const product = products.find((p) => p.id === productId);
+      if (!product || product.stock <= 0) return false;
+
+      let added = true;
       setCart((prev) => {
-        const product = products.find((p) => p.id === productId);
-        if (!product || product.stock <= 0) return prev;
         const existing = prev.find((i) => i.productId === productId);
         if (existing) {
+          if (existing.qty >= product.stock) {
+            added = false;
+            return prev;
+          }
           return prev.map((i) =>
             i.productId === productId
               ? { ...i, qty: Math.min(i.qty + 1, product.stock) }
@@ -199,19 +239,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           },
         ];
       });
+      return added;
     },
     [products]
   );
 
-  const updateCartQty = useCallback((productId: string, delta: number) => {
-    setCart((prev) =>
-      prev
-        .map((i) =>
-          i.productId === productId ? { ...i, qty: i.qty + delta } : i
-        )
-        .filter((i) => i.qty > 0)
-    );
-  }, []);
+  const updateCartQty = useCallback(
+    (productId: string, delta: number) => {
+      setCart((prev) => {
+        const product = products.find((p) => p.id === productId);
+        const maxStock = product ? product.stock : Infinity;
+        return prev
+          .map((i) => {
+            if (i.productId !== productId) return i;
+            const nextQty = delta > 0 ? Math.min(i.qty + delta, maxStock) : i.qty + delta;
+            return { ...i, qty: nextQty };
+          })
+          .filter((i) => i.qty > 0);
+      });
+    },
+    [products]
+  );
 
   const removeFromCart = useCallback((productId: string) => {
     setCart((prev) => prev.filter((i) => i.productId !== productId));
@@ -257,9 +305,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         };
       }
 
+      const txDateObj = workingDateObject(settings.workingDate);
+      const yy = String(txDateObj.getFullYear()).slice(-2);
+      const mm = String(txDateObj.getMonth() + 1).padStart(2, "0");
+      const dd = String(txDateObj.getDate()).padStart(2, "0");
+      const prefix = `TRX-${yy}${mm}${dd}-`;
+
+      const todayMaxSeq = transactions.reduce((max, t) => {
+        if (t.id.startsWith(prefix)) {
+          const seq = parseInt(t.id.replace(prefix, ""), 10);
+          return Number.isFinite(seq) ? Math.max(max, seq) : max;
+        }
+        return max;
+      }, 0);
+
       const transaction: Transaction = {
-        id: generateTransactionId(transactions.length + 1),
-        date: workingDateObject(settings.workingDate).toISOString(),
+        id: generateTransactionId(todayMaxSeq + 1, txDateObj),
+        date: txDateObj.toISOString(),
         items: items.map((i) => ({
           productId: i.productId,
           name: i.name,
@@ -335,6 +397,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const updateReview = useCallback(
+    (id: string, patch: Partial<Omit<CustomerReview, "id">>) => {
+      setReviews((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, ...patch } : r))
+      );
+    },
+    []
+  );
+
   const deleteReview = useCallback((id: string) => {
     setReviews((prev) => prev.filter((r) => r.id !== id));
   }, []);
@@ -371,6 +442,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       updateProduct,
       deleteProduct,
       addReview,
+      updateReview,
       deleteReview,
       updateSettings,
       resetData,
@@ -392,6 +464,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       updateProduct,
       deleteProduct,
       addReview,
+      updateReview,
       deleteReview,
       updateSettings,
       resetData,

@@ -36,6 +36,12 @@ export default function KasirView() {
     scanTimer.current = window.setTimeout(() => setScanMsg(null), 2500);
   };
 
+  const cartQtyMap = useMemo(() => {
+    const map = new Map<string, number>();
+    cart.forEach((i) => map.set(i.productId, i.qty));
+    return map;
+  }, [cart]);
+
   const handleScan = () => {
     const code = scan.trim();
     if (!code) {
@@ -44,24 +50,43 @@ export default function KasirView() {
     }
     const product = products.find((p) => p.barcode === code);
     if (!product) {
-      setScanMsg({ ok: false, text: `Barcode ${code} tidak terdaftar.` });
+      setScanMsg({ ok: false, text: `Barcode "${code}" tidak terdaftar.` });
       clearScanMsg();
       setScan("");
       scanRef.current?.focus();
       return;
     }
-    addToCart(product.id);
-    setScanMsg({ ok: true, text: `${product.name} ditambahkan ke keranjang.` });
+
+    if (product.stock <= 0) {
+      setScanMsg({ ok: false, text: `Stok "${product.name}" habis!` });
+      clearScanMsg();
+      setScan("");
+      scanRef.current?.focus();
+      return;
+    }
+
+    const inCart = cartQtyMap.get(product.id) ?? 0;
+    if (inCart >= product.stock) {
+      setScanMsg({
+        ok: false,
+        text: `Maksimal stok tercapai untuk "${product.name}" (${product.stock} pcs).`,
+      });
+      clearScanMsg();
+      setScan("");
+      scanRef.current?.focus();
+      return;
+    }
+
+    const added = addToCart(product.id);
+    if (added) {
+      setScanMsg({ ok: true, text: `${product.name} ditambahkan ke keranjang.` });
+    } else {
+      setScanMsg({ ok: false, text: `Stok "${product.name}" tidak mencukupi.` });
+    }
     clearScanMsg();
     setScan("");
     scanRef.current?.focus();
   };
-
-  const cartQtyMap = useMemo(() => {
-    const map = new Map<string, number>();
-    cart.forEach((i) => map.set(i.productId, i.qty));
-    return map;
-  }, [cart]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();

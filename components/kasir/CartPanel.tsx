@@ -37,7 +37,7 @@ const METHOD_ICONS: Record<PaymentMethod, typeof Banknote> = {
 };
 
 export default function CartPanel({ onClose, onSuccess }: CartPanelProps) {
-  const { cart, settings, checkout, updateCartQty, removeFromCart, clearCart } = useStore();
+  const { cart, products, settings, checkout, updateCartQty, removeFromCart, clearCart } = useStore();
   const [method, setMethod] = useState<PaymentMethod>("Tunai");
   const [cashStr, setCashStr] = useState("");
   const [error, setError] = useState("");
@@ -103,7 +103,7 @@ export default function CartPanel({ onClose, onSuccess }: CartPanelProps) {
     onSuccess(result.transaction);
   };
 
-  const quickAmounts = [...QUICK_CASH.filter((v) => v >= total), total];
+  const quickAmounts = QUICK_CASH.filter((v) => v > total);
 
   return (
     <div className="flex h-full flex-col">
@@ -151,6 +151,9 @@ export default function CartPanel({ onClose, onSuccess }: CartPanelProps) {
           <ul className="divide-y divide-stone-100">
             {cart.map((item) => {
               const lineTotal = item.price * item.qty;
+              const product = products.find((p) => p.id === item.productId);
+              const isMaxStock = product ? item.qty >= product.stock : false;
+
               return (
                 <li key={item.productId} className="flex items-center gap-3 px-4 py-3">
                   <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-[var(--color-crust)]/40">
@@ -180,8 +183,13 @@ export default function CartPanel({ onClose, onSuccess }: CartPanelProps) {
                     </span>
                     <button
                       onClick={() => updateCartQty(item.productId, 1)}
+                      disabled={isMaxStock}
                       aria-label="Tambah"
-                      className="flex h-7 w-7 items-center justify-center rounded-lg border border-stone-200 text-stone-500 transition hover:bg-amber-50 hover:text-[var(--color-terracotta)]"
+                      className={`flex h-7 w-7 items-center justify-center rounded-lg border transition ${
+                        isMaxStock
+                          ? "cursor-not-allowed border-stone-100 text-stone-300"
+                          : "border-stone-200 text-stone-500 hover:bg-amber-50 hover:text-[var(--color-terracotta)]"
+                      }`}
                     >
                       <Plus className="h-3.5 w-3.5" />
                     </button>
