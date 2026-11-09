@@ -28,6 +28,25 @@ import ProductFormModal from "./ProductFormModal";
 
 type CategoryFilter = "Semua" | Category;
 
+function ProductTableThumbnail({ src, alt }: { src?: string; alt: string }) {
+  const [failed, setFailed] = useState(false);
+  const target = failed || !src ? FALLBACK_IMAGE : src;
+
+  return (
+    <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-stone-200 bg-stone-100">
+      <Image
+        src={target}
+        alt={alt}
+        fill
+        sizes="40px"
+        unoptimized
+        onError={() => setFailed(true)}
+        className="object-cover"
+      />
+    </div>
+  );
+}
+
 const STATUS_STYLE = {
   Aman: { variant: "green" as const, dot: "bg-emerald-500" },
   "Hampir Habis": { variant: "yellow" as const, dot: "bg-yellow-500" },
@@ -171,16 +190,7 @@ export default function InventoryView() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                      <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-stone-200">
-                        <Image
-                          src={product.image || FALLBACK_IMAGE}
-                          alt={product.name}
-                          fill
-                          sizes="40px"
-                          unoptimized
-                          className="object-cover"
-                        />
-                      </div>
+                        <ProductTableThumbnail src={product.image} alt={product.name} />
                         <div>
                           <p className="font-bold text-stone-800">{product.name}</p>
                           {product.description && (

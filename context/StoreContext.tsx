@@ -25,6 +25,7 @@ import {
   INITIAL_PRODUCTS,
   INITIAL_REVIEWS,
   INITIAL_TRANSACTIONS,
+  migrateProductCatalog,
 } from "@/lib/mock-data";
 import { generateTransactionId, workingDateObject } from "@/lib/format";
 import { applyThemeVars, BAKERY_THEME } from "@/lib/color";
@@ -116,7 +117,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // read once after mount, before any writes are allowed.
   useEffect(() => {
     /* eslint-disable react-hooks/set-state-in-effect -- reading persisted data after hydration */
-    setProducts(loadFromStorage(STORAGE_KEYS.products, INITIAL_PRODUCTS));
+    const loadedProducts = loadFromStorage(STORAGE_KEYS.products, INITIAL_PRODUCTS);
+    setProducts(migrateProductCatalog(loadedProducts));
     setTransactions(loadFromStorage(STORAGE_KEYS.transactions, INITIAL_TRANSACTIONS));
     setSettings(loadFromStorage(STORAGE_KEYS.settings, DEFAULT_SETTINGS));
 
@@ -149,7 +151,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const cloud = await cloudLoadAll();
       if (cancelled) return;
       if (cloud !== null) {
-        if (cloud.products && cloud.products.length > 0) setProducts(cloud.products);
+        if (cloud.products && cloud.products.length > 0) {
+          setProducts(migrateProductCatalog(cloud.products));
+        }
         if (cloud.transactions && cloud.transactions.length > 0) {
           setTransactions(cloud.transactions);
         }

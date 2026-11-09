@@ -12,7 +12,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     category: "Roti Manis",
     price: 18000,
     stock: 24,
-    image: img("photo-1509440159596-0249088772ff"),
+    image: img("photo-1509365465985-25d11c17e812"),
     description: "Roti sobek lembut isi coklat meleleh, pilihan favorit keluarga.",
   },
   {
@@ -21,7 +21,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     category: "Roti Manis",
     price: 15000,
     stock: 3,
-    image: img("photo-1555507036-ab1f4038808a"),
+    image: img("photo-1468577760773-139c2f1c335f"),
     description: "Roti manis klasik dengan selai stroberi premium.",
   },
   {
@@ -30,7 +30,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     category: "Roti Manis",
     price: 17000,
     stock: 12,
-    image: img("photo-1549931319-a545dcf3bc73"),
+    image: img("photo-1612827788868-c8632040ab64"),
     description: "Perpaduan coklat dan keju di dalam roti empuk.",
   },
   {
@@ -39,7 +39,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     category: "Roti Manis",
     price: 12000,
     stock: 0,
-    image: img("photo-1551024601-bec78aea704b"),
+    image: img("photo-1677412627540-05bfbb819caf"),
     description: "Donat tabur gula halus yang ringan dan manis.",
   },
   {
@@ -57,7 +57,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     category: "Pastry",
     price: 25000,
     stock: 8,
-    image: img("photo-1517433670267-08bbd4be890f"),
+    image: img("photo-1756137943964-dd49bc77640e"),
     description: "Pastry Denmark dengan topping kacang almond panggang.",
   },
   {
@@ -66,7 +66,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     category: "Pastry",
     price: 20000,
     stock: 14,
-    image: img("photo-1509365465985-25d11c17e812"),
+    image: img("photo-1681218424681-b4f8228ecea9"),
     description: "Bun coklat dengan isian creamy khas bakery.",
   },
   {
@@ -84,7 +84,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     category: "Cake",
     price: 18000,
     stock: 2,
-    image: img("photo-1574085733277-851d9d856a3a"),
+    image: img("photo-1761746351221-5218b3ba23f0"),
     description: "Cupcake red velvet dengan cream cheese frosting.",
   },
   {
@@ -102,7 +102,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     category: "Minuman",
     price: 18000,
     stock: 30,
-    image: img("photo-1517701550927-30cf4ba1dba5"),
+    image: img("photo-1581996323441-538096e854b9"),
     description: "Espresso dingin menyegarkan tanpa gula.",
   },
   {
@@ -111,7 +111,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     category: "Minuman",
     price: 12000,
     stock: 5,
-    image: img("photo-1544787219-7f47ccb76574"),
+    image: img("photo-1556679343-c7306c1976bc"),
     description: "Teh melati dingin dengan aroma wangi bunga.",
   },
   {
@@ -130,7 +130,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     price: 50000,
     stock: 10,
     barcode: "8990037282383",
-    image: img("photo-1607252650355-f7fd0460ccdb"),
+    image: img("photo-1627308592814-f88b68f7b4a1"),
     description: "Cake roll rasa macha lembut dengan krim hijau khas Jepang.",
   },
   {
@@ -140,7 +140,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     price: 30000,
     stock: 8,
     barcode: "202506140043",
-    image: img("photo-1565958011703-44f9829ba187"),
+    image: img("photo-1779608993337-fc83f391bbed"),
     description: "Cake mangga segar dengan topping buah mangga matang.",
   },
   {
@@ -154,6 +154,49 @@ export const INITIAL_PRODUCTS: Product[] = [
     description: "Susu murni dingin yang creamy dan menyegarkan.",
   },
 ];
+
+/**
+ * Migrates old/mismatched default product images to accurate ones.
+ * Backfills cached client localStorage or Firestore documents seamlessly.
+ */
+export function migrateProductCatalog(products: Product[]): Product[] {
+  const initialMap = new Map(INITIAL_PRODUCTS.map((p) => [p.id, p]));
+
+  // Obsolete/mismatched Unsplash IDs mapping
+  const obsoleteImageMap: Record<string, string> = {
+    "photo-1607252650355-f7fd0460ccdb": img("photo-1627308592814-f88b68f7b4a1"), // Android mascot -> Matcha roll
+    "photo-1565958011703-44f9829ba187": img("photo-1779608993337-fc83f391bbed"), // Raspberry -> Mango cake
+    "photo-1517433670267-08bbd4be890f": img("photo-1756137943964-dd49bc77640e"), // Storefront -> Danish Almond
+    "photo-1574085733277-851d9d856a3a": img("photo-1761746351221-5218b3ba23f0"), // Black Forest -> Red Velvet
+    "photo-1517701550927-30cf4ba1dba5": img("photo-1581996323441-538096e854b9"), // Milk latte -> Iced Americano
+    "photo-1544787219-7f47ccb76574": img("photo-1556679343-c7306c1976bc"), // Hot tea mug -> Es Teh Melati
+    "photo-1551024601-bec78aea704b": img("photo-1677412627540-05bfbb819caf"), // Dark chocolate -> Donat Gula
+    "photo-1549931319-a545dcf3bc73": img("photo-1612827788868-c8632040ab64"), // Sourdough -> Roti Coklat Keju
+  };
+
+  return products.map((product) => {
+    const seed = initialMap.get(product.id);
+    if (seed && (!product.image || product.image.trim() === "")) {
+      return { ...product, image: seed.image };
+    }
+
+    if (product.id === "P01" && product.image && product.image.includes("photo-1509440159596-0249088772ff")) {
+      return { ...product, image: img("photo-1509365465985-25d11c17e812") };
+    }
+
+    if (product.id === "P02" && product.image && product.image.includes("photo-1555507036-ab1f4038808a")) {
+      return { ...product, image: img("photo-1468577760773-139c2f1c335f") };
+    }
+
+    for (const [oldId, newUrl] of Object.entries(obsoleteImageMap)) {
+      if (product.image && product.image.includes(oldId)) {
+        return { ...product, image: newUrl };
+      }
+    }
+
+    return product;
+  });
+}
 
 export const DEFAULT_SETTINGS: StoreSettings = {
   storeName: "HaiLai's Bakery and Cafe",

@@ -36,6 +36,25 @@ const METHOD_ICONS: Record<PaymentMethod, typeof Banknote> = {
   "Kartu Debit": CreditCard,
 };
 
+function CartItemThumbnail({ src, alt }: { src?: string; alt: string }) {
+  const [failed, setFailed] = useState(false);
+  const target = failed || !src ? FALLBACK_IMAGE : src;
+
+  return (
+    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-[var(--color-crust)]/40">
+      <Image
+        src={target}
+        alt={alt}
+        fill
+        sizes="48px"
+        unoptimized
+        onError={() => setFailed(true)}
+        className="object-cover"
+      />
+    </div>
+  );
+}
+
 export default function CartPanel({ onClose, onSuccess }: CartPanelProps) {
   const { cart, products, settings, checkout, updateCartQty, removeFromCart, clearCart } = useStore();
   const [method, setMethod] = useState<PaymentMethod>("Tunai");
@@ -156,16 +175,7 @@ export default function CartPanel({ onClose, onSuccess }: CartPanelProps) {
 
               return (
                 <li key={item.productId} className="flex items-center gap-3 px-4 py-3">
-                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-[var(--color-crust)]/40">
-                    <Image
-                      src={item.image || FALLBACK_IMAGE}
-                      alt={item.name}
-                      fill
-                      sizes="48px"
-                      unoptimized
-                      className="object-cover"
-                    />
-                  </div>
+                  <CartItemThumbnail src={item.image} alt={item.name} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-bold text-stone-800">{item.name}</p>
                     <p className="text-xs text-stone-500">{formatRupiah(item.price)}</p>

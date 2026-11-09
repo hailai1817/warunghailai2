@@ -80,6 +80,7 @@ export default function ProductFormModal({ product, onClose, onSave }: ProductFo
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const setField = (key: keyof typeof EMPTY_FORM, value: string) => {
+    if (key === "image") setPreviewFailed(false);
     setForm((prev) => ({ ...prev, [key]: value }));
     setErrors((prev) => ({ ...prev, [key]: "" }));
   };
@@ -135,7 +136,7 @@ export default function ProductFormModal({ product, onClose, onSave }: ProductFo
       category: form.category,
       price,
       stock,
-      image: form.image.trim() || product?.image || "",
+      image: form.image.trim(),
       barcode: form.barcode.trim() || undefined,
       description: form.description.trim() || undefined,
     });
@@ -291,6 +292,7 @@ export default function ProductFormModal({ product, onClose, onSave }: ProductFo
                     onClick={() => {
                       setForm((prev) => ({ ...prev, image: "" }));
                       setPreviewFailed(false);
+                      setUploadError("");
                     }}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-stone-300 bg-white px-3 py-2 text-xs font-bold text-stone-600 transition hover:border-red-300 hover:bg-red-50 hover:text-red-600"
                   >
@@ -298,6 +300,19 @@ export default function ProductFormModal({ product, onClose, onSave }: ProductFo
                     Hapus Foto
                   </button>
                 )}
+              </div>
+              <div className="mt-2.5">
+                <input
+                  type="url"
+                  value={form.image.startsWith("data:") ? "" : form.image}
+                  onChange={(e) => {
+                    setPreviewFailed(false);
+                    setUploadError("");
+                    setField("image", e.target.value);
+                  }}
+                  placeholder="Atau tempel URL gambar (https://...)"
+                  className="w-full rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs text-stone-700 outline-none transition placeholder:text-stone-400 focus:border-[var(--color-terracotta)] focus:ring-1 focus:ring-[var(--color-terracotta)]"
+                />
               </div>
               {uploadError && (
                 <p className="mt-1.5 text-xs font-semibold text-red-600">{uploadError}</p>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Plus, ShoppingBasket } from "lucide-react";
+import { Croissant, Plus, ShoppingBasket } from "lucide-react";
 import type { Product } from "@/lib/types";
 import { formatRupiah } from "@/lib/format";
 import { getStockStatus } from "@/lib/stock";
@@ -23,7 +23,14 @@ const CATEGORY_BADGE: Record<Product["category"], "amber" | "terracotta" | "choc
 };
 
 export default function ProductCard({ product, inCartQty, onAdd }: ProductCardProps) {
+  const [prevImage, setPrevImage] = useState(product.image);
   const [imgError, setImgError] = useState(false);
+
+  if (product.image !== prevImage) {
+    setPrevImage(product.image);
+    setImgError(false);
+  }
+
   const status = getStockStatus(product.stock);
   const outOfStock = status === "Habis";
   const isMaxInCart = inCartQty >= product.stock;
@@ -32,17 +39,23 @@ export default function ProductCard({ product, inCartQty, onAdd }: ProductCardPr
   return (
     <div className="group flex flex-col overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
       <div className="relative aspect-[4/3] overflow-hidden bg-[var(--color-crust)]/40">
-        <Image
-          src={imgError ? FALLBACK_IMAGE : product.image || FALLBACK_IMAGE}
-          alt={product.name}
-          fill
-          sizes="(max-width: 640px) 100vw, (max-width: 1536px) 50vw, 33vw"
-          unoptimized
-          onError={() => setImgError(true)}
-          className={`object-cover transition duration-300 group-hover:scale-105 ${
-            outOfStock ? "grayscale" : ""
-          }`}
-        />
+        {imgError && !FALLBACK_IMAGE ? (
+          <div className="flex h-full w-full items-center justify-center text-[var(--color-terracotta)]/40">
+            <Croissant className="h-12 w-12" />
+          </div>
+        ) : (
+          <Image
+            src={imgError ? FALLBACK_IMAGE : product.image || FALLBACK_IMAGE}
+            alt={product.name}
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1536px) 50vw, 33vw"
+            unoptimized
+            onError={() => setImgError(true)}
+            className={`object-cover transition duration-300 group-hover:scale-105 ${
+              outOfStock ? "grayscale" : ""
+            }`}
+          />
+        )}
         <div className="absolute left-2 top-2 flex flex-col gap-1.5">
           <Badge variant={CATEGORY_BADGE[product.category]}>{product.category}</Badge>
         </div>
