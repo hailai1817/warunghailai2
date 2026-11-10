@@ -17,6 +17,7 @@ import PurchaseHistoryView from "./orders/PurchaseHistoryView";
 import InventoryView from "./inventory/InventoryView";
 import ReportsView from "./reports/ReportsView";
 import ReviewsView from "./reviews/ReviewsView";
+import EmployeesView from "./employees/EmployeesView";
 import SettingsView from "./settings/SettingsView";
 
 function AppContent() {
@@ -126,6 +127,7 @@ function AppContent() {
           {activeView === "stok" && user.role !== "pelanggan" && <InventoryView />}
           {activeView === "laporan" && user.role !== "pelanggan" && <ReportsView />}
           {activeView === "ulasan" && <ReviewsView />}
+          {activeView === "karyawan" && user.role === "admin" && <EmployeesView />}
           {activeView === "pengaturan" && user.role !== "pelanggan" && <SettingsView />}
         </main>
       </div>

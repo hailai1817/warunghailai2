@@ -21,6 +21,7 @@ const VIEW_TITLES: Record<ViewKey, { title: string; subtitle: string }> = {
   stok: { title: "Manajemen Stok", subtitle: "Kelola produk, harga, dan ketersediaan barang" },
   laporan: { title: "Laporan Transaksi", subtitle: "Pantau penjualan dan riwayat transaksi" },
   ulasan: { title: "Ulasan Pelanggan", subtitle: "Komentar, rating, dan masukan pelanggan" },
+  karyawan: { title: "Manajemen Karyawan", subtitle: "Daftar karyawan yang bekerja saat ini dan registrasi kasir baru" },
   pengaturan: { title: "Pengaturan Toko", subtitle: "Konfigurasi profil dan data toko" },
 };
 

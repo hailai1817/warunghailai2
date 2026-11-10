@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, History, Package, Settings, ShoppingBasket, Star } from "lucide-react";
+import { BarChart3, History, Package, Settings, ShoppingBasket, Star, Users } from "lucide-react";
 import type { UserRole, ViewKey } from "@/lib/types";
 import { useAuth } from "@/context/AuthContext";
 import { useStore } from "@/context/StoreContext";
@@ -70,6 +70,17 @@ export function getNavItemsForRole(role?: UserRole): NavItemConfig[] {
         role === "admin" ? "Balas & Kelola Ulasan" : "Lihat Komentar & Rating",
       icon: Star,
     },
+    ...(role === "admin"
+      ? [
+          {
+            key: "karyawan" as ViewKey,
+            label: "Data Karyawan",
+            shortLabel: "Karyawan",
+            description: "Karyawan Aktif & Registrasi",
+            icon: Users,
+          },
+        ]
+      : []),
     {
       key: "pengaturan",
       label: "Pengaturan",
@@ -88,10 +99,11 @@ interface NavListProps {
 
 export default function NavList({ view, onNavigate, variant = "dark" }: NavListProps) {
   const { user } = useAuth();
-  const { cart, reviews } = useStore();
+  const { cart, reviews, employees } = useStore();
   const navItems = getNavItemsForRole(user?.role);
   const cartCount = cart.reduce((sum, i) => sum + i.qty, 0);
   const reviewCount = reviews.length;
+  const activeEmployeeCount = employees.filter((e) => e.active).length;
   const dark = variant === "dark";
 
   return (
@@ -130,6 +142,11 @@ export default function NavList({ view, onNavigate, variant = "dark" }: NavListP
             {item.key === "ulasan" && reviewCount > 0 && (
               <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-white px-1.5 text-xs font-bold text-[var(--color-terracotta)] shadow">
                 {reviewCount}
+              </span>
+            )}
+            {item.key === "karyawan" && activeEmployeeCount > 0 && (
+              <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-emerald-500 px-1.5 text-xs font-bold text-white shadow">
+                {activeEmployeeCount}
               </span>
             )}
           </button>

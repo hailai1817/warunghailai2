@@ -59,12 +59,12 @@ export const USER_ROLES: {
   {
     key: "kasir",
     label: "Kasir",
-    description: "Proses pesanan kasir, kelola stok, laporan, lihat ulasan & pengaturan.",
+    description: "Khusus karyawan aktif terdaftar: kelola stok, kasir, laporan & pengaturan.",
   },
   {
     key: "admin",
     label: "Admin",
-    description: "Akses penuh termasuk membalas ulasan pelanggan & manajemen data.",
+    description: "Akses penuh: kelola karyawan aktif, balas ulasan & seluruh sistem.",
   },
 ];
 
@@ -72,6 +72,16 @@ export interface AuthUser {
   name: string;
   role: UserRole;
   loginAt: string;
+}
+
+export interface Employee {
+  id: string;
+  name: string;
+  position: string;
+  shift?: string;
+  phone?: string;
+  active: boolean;
+  joinedAt: string;
 }
 
 export interface Transaction {
@@ -126,10 +136,17 @@ export interface CustomerReview {
   adminReplyDate?: string;
 }
 
-export type ViewKey = "kasir" | "riwayat" | "stok" | "laporan" | "ulasan" | "pengaturan";
+export type ViewKey =
+  | "kasir"
+  | "riwayat"
+  | "stok"
+  | "laporan"
+  | "ulasan"
+  | "karyawan"
+  | "pengaturan";
 
 export const ROLE_ALLOWED_VIEWS: Record<UserRole, ViewKey[]> = {
   pelanggan: ["kasir", "riwayat", "ulasan"],
   kasir: ["kasir", "stok", "laporan", "ulasan", "pengaturan"],
-  admin: ["kasir", "stok", "laporan", "ulasan", "pengaturan"],
+  admin: ["kasir", "stok", "laporan", "ulasan", "karyawan", "pengaturan"],
 };

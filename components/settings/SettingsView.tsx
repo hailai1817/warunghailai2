@@ -28,7 +28,7 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 export default function SettingsView() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-  const { settings, updateSettings, resetData, clearTransactions, products, transactions, reviews } =
+  const { settings, updateSettings, resetData, clearTransactions, products, transactions, reviews, employees } =
     useStore();
   const [form, setForm] = useState<StoreSettings>(settings);
   const theme = settings.theme ?? DEFAULT_SETTINGS.theme ?? BAKERY_THEME;
@@ -91,6 +91,7 @@ export default function SettingsView() {
       products,
       transactions,
       reviews,
+      employees,
     };
     downloadFile(
       `data-hailai-bakery-${new Date().toISOString().slice(0, 10)}.json`,

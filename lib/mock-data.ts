@@ -1,4 +1,4 @@
-import type { CustomerReview, Product, StoreSettings, Transaction, PaymentMethod } from "./types";
+import type { CustomerReview, Employee, Product, StoreSettings, Transaction, PaymentMethod } from "./types";
 import { DEFAULT_IMAGE } from "./constants";
 import { BAKERY_THEME } from "./color";
 
@@ -355,5 +355,35 @@ export const INITIAL_REVIEWS: CustomerReview[] = [
     avatar: avatarImg("photo-1506794778202-cad84cf45f1d"),
     comment: "Kemasan bagus, roti tetap segar sampai rumah. Semoga ke depannya ada varian baru.",
     date: reviewDate(7, 12, 10),
+  },
+];
+
+export const INITIAL_EMPLOYEES: Employee[] = [
+  {
+    id: "E01",
+    name: "Rina Kusuma",
+    position: "Kasir Utama",
+    shift: "Pagi (07:00 - 15:00)",
+    phone: "0812-3456-7890",
+    active: true,
+    joinedAt: reviewDate(30, 8, 0),
+  },
+  {
+    id: "E02",
+    name: "Bagas Pratama",
+    position: "Kasir & Barista",
+    shift: "Sore (14:00 - 22:00)",
+    phone: "0813-9876-5432",
+    active: true,
+    joinedAt: reviewDate(15, 9, 0),
+  },
+  {
+    id: "E03",
+    name: "Tika Wulandari",
+    position: "Kasir",
+    shift: "Pagi (07:00 - 15:00)",
+    phone: "0857-2233-4455",
+    active: false,
+    joinedAt: reviewDate(45, 8, 30),
   },
 ];

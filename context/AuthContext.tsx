@@ -8,7 +8,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import type { ReactNode } from "react";
-import type { AuthUser, UserRole } from "@/lib/types";
+import type { AuthUser, Employee, UserRole } from "@/lib/types";
 import { STORAGE_KEYS } from "@/lib/constants";
 
 interface AuthSnapshot {
@@ -84,10 +84,17 @@ function subscribe(listener: () => void): () => void {
   };
 }
 
+export type LoginResult = { ok: true } | { ok: false; error: string };
+
 interface AuthContextValue {
   user: AuthUser | null;
   authReady: boolean;
-  login: (name: string, password: string, role: UserRole) => void;
+  login: (
+    name: string,
+    password: string,
+    role: UserRole,
+    employees?: Employee[]
+  ) => LoginResult;
   logout: () => void;
 }
 
@@ -100,24 +107,69 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     getServerSnapshot
   );
 
-  const login = useCallback((name: string, password: string, role: UserRole) => {
-    const cleanName = name.trim();
-    if (!cleanName || !password.trim() || !isValidRole(role)) return;
+  const login = useCallback(
+    (
+      name: string,
+      password: string,
+      role: UserRole,
+      employees: Employee[] = []
+    ): LoginResult => {
+      const cleanName = name.trim();
+      if (!cleanName) {
+        return { ok: false, error: "Nama pengguna wajib diisi." };
+      }
+      if (!password.trim()) {
+        return { ok: false, error: "Password wajib diisi." };
+      }
+      if (!isValidRole(role)) {
+        return { ok: false, error: "Pilih kategori pengguna terlebih dahulu." };
+      }
 
-    // Any user-typed or randomly generated password grants entry for the selected role
-    const nextUser: AuthUser = {
-      name: cleanName,
-      role,
-      loginAt: new Date().toISOString(),
-    };
-    try {
-      window.localStorage.setItem(STORAGE_KEYS.auth, JSON.stringify(nextUser));
-    } catch {
-      // Ignore storage quota errors
-    }
-    cachedClientSnapshot = { ready: true, user: nextUser };
-    listeners.forEach((listener) => listener());
-  }, []);
+      let resolvedName = cleanName;
+
+      if (role === "admin") {
+        if (cleanName.toLowerCase() !== "hailai" || password !== "admin123") {
+          return {
+            ok: false,
+            error: "Login Admin gagal! Nama pengguna atau password Admin salah.",
+          };
+        }
+        resolvedName = "Hailai";
+      } else if (role === "kasir") {
+        const matched = employees.find(
+          (emp) => emp.name.trim().toLowerCase() === cleanName.toLowerCase()
+        );
+        if (!matched) {
+          return {
+            ok: false,
+            error: `Nama "${cleanName}" tidak terdaftar di data karyawan. Silakan hubungi Admin untuk mendaftarkan karyawan terlebih dahulu.`,
+          };
+        }
+        if (!matched.active) {
+          return {
+            ok: false,
+            error: `Karyawan "${matched.name}" sedang berstatus nonaktif / tidak bekerja saat ini. Hubungi Admin untuk mengaktifkan status kerja.`,
+          };
+        }
+        resolvedName = matched.name;
+      }
+
+      const nextUser: AuthUser = {
+        name: resolvedName,
+        role,
+        loginAt: new Date().toISOString(),
+      };
+      try {
+        window.localStorage.setItem(STORAGE_KEYS.auth, JSON.stringify(nextUser));
+      } catch {
+        // Ignore storage quota errors
+      }
+      cachedClientSnapshot = { ready: true, user: nextUser };
+      listeners.forEach((listener) => listener());
+      return { ok: true };
+    },
+    []
+  );
 
   const logout = useCallback(() => {
     try {

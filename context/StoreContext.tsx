@@ -13,6 +13,7 @@ import type {
   CartItem,
   CheckoutResult,
   CustomerReview,
+  Employee,
   PaymentMethod,
   Product,
   StoreSettings,
@@ -23,6 +24,7 @@ import type {
 import { STORAGE_KEYS } from "@/lib/constants";
 import {
   DEFAULT_SETTINGS,
+  INITIAL_EMPLOYEES,
   INITIAL_PRODUCTS,
   INITIAL_REVIEWS,
   INITIAL_TRANSACTIONS,
@@ -61,7 +63,7 @@ function persistLocal(key: string, value: unknown): void {
 // listeners: writes are explicit setDoc requests a moment after changes settle.
 const cloudTimers: Record<string, ReturnType<typeof setTimeout>> = {};
 function scheduleCloudSave(
-  key: "products" | "transactions" | "settings" | "reviews",
+  key: "products" | "transactions" | "settings" | "reviews" | "employees",
   payload: unknown
 ): void {
   if (!hasFirebaseConfig()) return;
@@ -74,12 +76,15 @@ function scheduleCloudSave(
   }, 700);
 }
 
+export type EmployeeMutationResult = { ok: true } | { ok: false; error: string };
+
 interface StoreContextValue {
   products: Product[];
   transactions: Transaction[];
   cart: CartItem[];
   settings: StoreSettings;
   reviews: CustomerReview[];
+  employees: Employee[];
   hydrated: boolean;
   cloudEnabled: boolean;
   addToCart: (productId: string) => boolean;
@@ -98,6 +103,12 @@ interface StoreContextValue {
   addReview: (data: Omit<CustomerReview, "id" | "date">) => void;
   updateReview: (id: string, patch: Partial<Omit<CustomerReview, "id">>) => void;
   deleteReview: (id: string) => void;
+  addEmployee: (data: Omit<Employee, "id" | "joinedAt">) => EmployeeMutationResult;
+  updateEmployee: (
+    id: string,
+    patch: Partial<Omit<Employee, "id" | "joinedAt">>
+  ) => EmployeeMutationResult;
+  deleteEmployee: (id: string) => void;
   updateSettings: (patch: Partial<StoreSettings>) => void;
   resetData: () => void;
   clearTransactions: () => void;
@@ -112,6 +123,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
   const [settings, setSettings] = useState<StoreSettings>(DEFAULT_SETTINGS);
   const [reviews, setReviews] = useState<CustomerReview[]>(INITIAL_REVIEWS);
+  const [employees, setEmployees] = useState<Employee[]>(INITIAL_EMPLOYEES);
   const [cart, setCart] = useState<CartItem[]>([]);
 
   // Initial state intentionally matches the server-rendered mock data so the
@@ -123,6 +135,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setProducts(migrateProductCatalog(loadedProducts));
     setTransactions(loadFromStorage(STORAGE_KEYS.transactions, INITIAL_TRANSACTIONS));
     setSettings(loadFromStorage(STORAGE_KEYS.settings, DEFAULT_SETTINGS));
+    setEmployees(loadFromStorage(STORAGE_KEYS.employees, INITIAL_EMPLOYEES));
 
     // Merge default avatar pictures for reviews that don't have one yet
     const loadedReviews = loadFromStorage(STORAGE_KEYS.reviews, INITIAL_REVIEWS);
@@ -158,6 +171,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
         if (cloud.transactions && cloud.transactions.length > 0) {
           setTransactions(cloud.transactions);
+        }
+        if (cloud.employees && cloud.employees.length > 0) {
+          setEmployees(cloud.employees);
         }
         if (cloud.reviews && cloud.reviews.length > 0) {
           const initialAvatarMap = new Map(INITIAL_REVIEWS.map((r) => [r.id, r.avatar]));
@@ -206,6 +222,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (!cloudReady) return;
     scheduleCloudSave("reviews", reviews);
   }, [reviews, hydrated, cloudReady]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    persistLocal(STORAGE_KEYS.employees, employees);
+    if (!cloudReady) return;
+    scheduleCloudSave("employees", employees);
+  }, [employees, hydrated, cloudReady]);
 
   // Apply the user's color theme to the CSS custom properties used by the UI.
   // Runs on mount (after persisted settings load) and whenever the theme changes.
@@ -423,6 +446,76 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setReviews((prev) => prev.filter((r) => r.id !== id));
   }, []);
 
+  const addEmployee = useCallback(
+    (data: Omit<Employee, "id" | "joinedAt">): EmployeeMutationResult => {
+      const cleanName = data.name.trim();
+      if (!cleanName) {
+        return { ok: false, error: "Nama karyawan wajib diisi." };
+      }
+      const duplicate = employees.some(
+        (e) => e.name.trim().toLowerCase() === cleanName.toLowerCase()
+      );
+      if (duplicate) {
+        return { ok: false, error: `Karyawan dengan nama "${cleanName}" sudah terdaftar.` };
+      }
+      setEmployees((prev) => {
+        const nextSeq = prev.reduce((max, e) => {
+          const n = parseInt(e.id.replace(/\D/g, ""), 10);
+          return Number.isNaN(n) ? max : Math.max(max, n);
+        }, 0);
+        const id = `E${String(nextSeq + 1).padStart(2, "0")}`;
+        return [
+          {
+            ...data,
+            name: cleanName,
+            id,
+            joinedAt: new Date().toISOString(),
+          },
+          ...prev,
+        ];
+      });
+      return { ok: true };
+    },
+    [employees]
+  );
+
+  const updateEmployee = useCallback(
+    (
+      id: string,
+      patch: Partial<Omit<Employee, "id" | "joinedAt">>
+    ): EmployeeMutationResult => {
+      if (patch.name !== undefined) {
+        const cleanName = patch.name.trim();
+        if (!cleanName) {
+          return { ok: false, error: "Nama karyawan wajib diisi." };
+        }
+        const duplicate = employees.some(
+          (e) => e.id !== id && e.name.trim().toLowerCase() === cleanName.toLowerCase()
+        );
+        if (duplicate) {
+          return { ok: false, error: `Karyawan dengan nama "${cleanName}" sudah terdaftar.` };
+        }
+      }
+      setEmployees((prev) =>
+        prev.map((e) =>
+          e.id === id
+            ? {
+                ...e,
+                ...patch,
+                name: patch.name !== undefined ? patch.name.trim() : e.name,
+              }
+            : e
+        )
+      );
+      return { ok: true };
+    },
+    [employees]
+  );
+
+  const deleteEmployee = useCallback((id: string) => {
+    setEmployees((prev) => prev.filter((e) => e.id !== id));
+  }, []);
+
   const updateSettings = useCallback((patch: Partial<StoreSettings>) => {
     setSettings((prev) => ({ ...prev, ...patch }));
   }, []);
@@ -432,6 +525,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setTransactions(INITIAL_TRANSACTIONS);
     setSettings(DEFAULT_SETTINGS);
     setReviews(INITIAL_REVIEWS);
+    setEmployees(INITIAL_EMPLOYEES);
     setCart([]);
   }, []);
 
@@ -444,6 +538,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       cart,
       settings,
       reviews,
+      employees,
       hydrated,
       cloudEnabled: hasFirebaseConfig(),
       addToCart,
@@ -457,6 +552,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addReview,
       updateReview,
       deleteReview,
+      addEmployee,
+      updateEmployee,
+      deleteEmployee,
       updateSettings,
       resetData,
       clearTransactions,
@@ -467,6 +565,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       cart,
       settings,
       reviews,
+      employees,
       hydrated,
       addToCart,
       updateCartQty,
@@ -479,6 +578,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addReview,
       updateReview,
       deleteReview,
+      addEmployee,
+      updateEmployee,
+      deleteEmployee,
       updateSettings,
       resetData,
       clearTransactions,

@@ -9,15 +9,16 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { getDb, hasFirebaseConfig } from "./firebase";
-import type { CustomerReview, Product, StoreSettings, Transaction } from "./types";
+import type { CustomerReview, Employee, Product, StoreSettings, Transaction } from "./types";
 
-export type CloudCollectionKey = "products" | "transactions" | "reviews";
+export type CloudCollectionKey = "products" | "transactions" | "reviews" | "employees";
 
 export interface CloudData {
   products?: Product[];
   transactions?: Transaction[];
   settings?: StoreSettings | null;
   reviews?: CustomerReview[];
+  employees?: Employee[];
 }
 
 const SETTINGS_DOC = "store";
@@ -33,18 +34,20 @@ export async function cloudLoadAll(): Promise<CloudData | null> {
   const db = getDb();
   if (!db) return null;
   try {
-    const [productsSnap, transactionsSnap, settingsSnap, reviewsSnap] =
+    const [productsSnap, transactionsSnap, settingsSnap, reviewsSnap, employeesSnap] =
       await Promise.all([
         getDocs(collection(db, "products")),
         getDocs(collection(db, "transactions")),
         getDoc(doc(db, "settings", SETTINGS_DOC)),
         getDocs(collection(db, "reviews")),
+        getDocs(collection(db, "employees")),
       ]);
     return {
       products: productsSnap.docs.map((d) => d.data() as Product),
       transactions: transactionsSnap.docs.map((d) => d.data() as Transaction),
       settings: settingsSnap.exists() ? (settingsSnap.data() as StoreSettings) : null,
       reviews: reviewsSnap.docs.map((d) => d.data() as CustomerReview),
+      employees: employeesSnap.docs.map((d) => d.data() as Employee),
     };
   } catch {
     // Unreachable network or unsupported rules -> caller falls back to local
@@ -59,11 +62,11 @@ export async function cloudSave(
 ): Promise<boolean>;
 export async function cloudSave(
   key: CloudCollectionKey,
-  payload: Array<Product | Transaction | CustomerReview>
+  payload: Array<Product | Transaction | CustomerReview | Employee>
 ): Promise<boolean>;
 export async function cloudSave(
   key: CloudCollectionKey | "settings",
-  payload: StoreSettings | Array<Product | Transaction | CustomerReview>
+  payload: StoreSettings | Array<Product | Transaction | CustomerReview | Employee>
 ): Promise<boolean> {
   const db = getDb();
   if (!db) return false;

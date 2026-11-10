@@ -18,7 +18,15 @@ export default function BottomNav({ view, onNavigate }: BottomNavProps) {
 
   return (
     <nav className="no-print fixed inset-x-0 bottom-0 z-30 border-t border-stone-200 bg-white/95 backdrop-blur lg:hidden">
-      <div className={items.length === 3 ? "grid grid-cols-3" : "grid grid-cols-5"}>
+      <div
+        className={
+          items.length === 3
+            ? "grid grid-cols-3"
+            : items.length === 6
+              ? "grid grid-cols-6"
+              : "grid grid-cols-5"
+        }
+      >
         {items.map((item) => {
           const active = view === item.key;
           const Icon = item.icon;
