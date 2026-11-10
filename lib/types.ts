@@ -44,9 +44,41 @@ export interface TransactionItem {
   subtotal: number;
 }
 
+export type UserRole = "pelanggan" | "kasir" | "admin";
+
+export const USER_ROLES: {
+  key: UserRole;
+  label: string;
+  description: string;
+}[] = [
+  {
+    key: "pelanggan",
+    label: "Pelanggan",
+    description: "Pesan produk, lihat riwayat pembelian, dan tulis ulasan.",
+  },
+  {
+    key: "kasir",
+    label: "Kasir",
+    description: "Proses pesanan kasir, kelola stok, laporan, lihat ulasan & pengaturan.",
+  },
+  {
+    key: "admin",
+    label: "Admin",
+    description: "Akses penuh termasuk membalas ulasan pelanggan & manajemen data.",
+  },
+];
+
+export interface AuthUser {
+  name: string;
+  role: UserRole;
+  loginAt: string;
+}
+
 export interface Transaction {
   id: string;
   date: string;
+  customerName?: string;
+  orderedByRole?: UserRole;
   items: TransactionItem[];
   subtotal: number;
   discount?: number;
@@ -89,6 +121,15 @@ export interface CustomerReview {
   comment: string;
   date: string;
   avatar?: string;
+  adminReply?: string;
+  adminReplyBy?: string;
+  adminReplyDate?: string;
 }
 
-export type ViewKey = "kasir" | "stok" | "laporan" | "ulasan" | "pengaturan";
+export type ViewKey = "kasir" | "riwayat" | "stok" | "laporan" | "ulasan" | "pengaturan";
+
+export const ROLE_ALLOWED_VIEWS: Record<UserRole, ViewKey[]> = {
+  pelanggan: ["kasir", "riwayat", "ulasan"],
+  kasir: ["kasir", "stok", "laporan", "ulasan", "pengaturan"],
+  admin: ["kasir", "stok", "laporan", "ulasan", "pengaturan"],
+};

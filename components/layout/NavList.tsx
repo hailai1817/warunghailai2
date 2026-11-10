@@ -1,16 +1,84 @@
 "use client";
 
-import { BarChart3, Package, Settings, ShoppingBasket, Star } from "lucide-react";
-import type { ViewKey } from "@/lib/types";
+import { BarChart3, History, Package, Settings, ShoppingBasket, Star } from "lucide-react";
+import type { UserRole, ViewKey } from "@/lib/types";
+import { useAuth } from "@/context/AuthContext";
 import { useStore } from "@/context/StoreContext";
 
-export const NAV_ITEMS: { key: ViewKey; label: string; description: string; icon: typeof ShoppingBasket }[] = [
-  { key: "kasir", label: "Katalog Menu", description: "Kasir & Pesanan", icon: ShoppingBasket },
-  { key: "stok", label: "Manajemen Stok", description: "Inventory Control", icon: Package },
-  { key: "laporan", label: "Laporan Transaksi", description: "Sales Report", icon: BarChart3 },
-  { key: "ulasan", label: "Ulasan Pelanggan", description: "Komentar & Rating", icon: Star },
-  { key: "pengaturan", label: "Pengaturan", description: "Store Settings", icon: Settings },
-];
+export interface NavItemConfig {
+  key: ViewKey;
+  label: string;
+  shortLabel: string;
+  description: string;
+  icon: typeof ShoppingBasket;
+}
+
+export function getNavItemsForRole(role?: UserRole): NavItemConfig[] {
+  if (role === "pelanggan") {
+    return [
+      {
+        key: "kasir",
+        label: "Pesan Menu",
+        shortLabel: "Menu",
+        description: "Pilih Roti & Minuman",
+        icon: ShoppingBasket,
+      },
+      {
+        key: "riwayat",
+        label: "Riwayat Pembelian",
+        shortLabel: "Riwayat",
+        description: "Pesanan & Nota Saya",
+        icon: History,
+      },
+      {
+        key: "ulasan",
+        label: "Ulasan Pelanggan",
+        shortLabel: "Ulasan",
+        description: "Tulis & Lihat Komentar",
+        icon: Star,
+      },
+    ];
+  }
+
+  return [
+    {
+      key: "kasir",
+      label: "Katalog Menu",
+      shortLabel: "Kasir",
+      description: "Kasir & Pesanan",
+      icon: ShoppingBasket,
+    },
+    {
+      key: "stok",
+      label: "Manajemen Stok",
+      shortLabel: "Stok",
+      description: "Inventory Control",
+      icon: Package,
+    },
+    {
+      key: "laporan",
+      label: "Laporan Transaksi",
+      shortLabel: "Laporan",
+      description: "Sales Report",
+      icon: BarChart3,
+    },
+    {
+      key: "ulasan",
+      label: "Ulasan Pelanggan",
+      shortLabel: "Ulasan",
+      description:
+        role === "admin" ? "Balas & Kelola Ulasan" : "Lihat Komentar & Rating",
+      icon: Star,
+    },
+    {
+      key: "pengaturan",
+      label: "Pengaturan",
+      shortLabel: "Setting",
+      description: role === "admin" ? "Full Admin Settings" : "Store Settings",
+      icon: Settings,
+    },
+  ];
+}
 
 interface NavListProps {
   view: ViewKey;
@@ -19,14 +87,16 @@ interface NavListProps {
 }
 
 export default function NavList({ view, onNavigate, variant = "dark" }: NavListProps) {
+  const { user } = useAuth();
   const { cart, reviews } = useStore();
+  const navItems = getNavItemsForRole(user?.role);
   const cartCount = cart.reduce((sum, i) => sum + i.qty, 0);
   const reviewCount = reviews.length;
   const dark = variant === "dark";
 
   return (
     <nav className="space-y-1.5">
-      {NAV_ITEMS.map((item) => {
+      {navItems.map((item) => {
         const active = view === item.key;
         const Icon = item.icon;
         return (

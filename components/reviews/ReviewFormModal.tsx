@@ -10,6 +10,7 @@ import StarRating from "./StarRating";
 
 interface ReviewFormModalProps {
   review?: CustomerReview | null;
+  defaultCustomerName?: string;
   onClose: () => void;
   onSave: (data: Omit<CustomerReview, "id" | "date">) => void;
 }
@@ -70,8 +71,13 @@ function resizeAvatar(dataUrl: string, size = AVATAR_SIZE, quality = 0.75): Prom
   });
 }
 
-export default function ReviewFormModal({ review, onClose, onSave }: ReviewFormModalProps) {
-  const [name, setName] = useState(review?.customerName ?? "");
+export default function ReviewFormModal({
+  review,
+  defaultCustomerName,
+  onClose,
+  onSave,
+}: ReviewFormModalProps) {
+  const [name, setName] = useState(review?.customerName ?? defaultCustomerName ?? "");
   const [avatar, setAvatar] = useState(review?.avatar ?? "");
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [urlInput, setUrlInput] = useState("");

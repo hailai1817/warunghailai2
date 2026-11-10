@@ -15,6 +15,7 @@ import {
   RotateCcw,
   Wifi,
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 import { useStore } from "@/context/StoreContext";
 import type { ColorTheme, StoreSettings } from "@/lib/types";
 import { DEFAULT_SETTINGS } from "@/lib/mock-data";
@@ -25,6 +26,8 @@ import { cloudTestConnection, type CloudConnectionStatus } from "@/lib/firestore
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 export default function SettingsView() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const { settings, updateSettings, resetData, clearTransactions, products, transactions, reviews } =
     useStore();
   const [form, setForm] = useState<StoreSettings>(settings);
@@ -419,23 +422,33 @@ export default function SettingsView() {
             </span>
           </button>
           <button
-            onClick={() => setConfirmClearTx(true)}
-            className="flex flex-col items-center gap-2 rounded-2xl border border-stone-200 bg-stone-50/60 p-5 text-sm font-bold text-stone-700 transition hover:border-red-300 hover:bg-red-50"
+            onClick={() => isAdmin && setConfirmClearTx(true)}
+            disabled={!isAdmin}
+            className={`flex flex-col items-center gap-2 rounded-2xl border border-stone-200 bg-stone-50/60 p-5 text-sm font-bold text-stone-700 transition ${
+              isAdmin
+                ? "hover:border-red-300 hover:bg-red-50"
+                : "cursor-not-allowed opacity-55"
+            }`}
           >
             <Trash2 className="h-6 w-6 text-red-500" />
             Hapus Riwayat Transaksi
             <span className="text-[11px] font-medium text-stone-400">
-              Kosongkan laporan &amp; statistik
+              {isAdmin ? "Kosongkan laporan & statistik" : "Khusus akses Admin"}
             </span>
           </button>
           <button
-            onClick={() => setConfirmReset(true)}
-            className="flex flex-col items-center gap-2 rounded-2xl border border-stone-200 bg-stone-50/60 p-5 text-sm font-bold text-stone-700 transition hover:border-amber-300 hover:bg-amber-50"
+            onClick={() => isAdmin && setConfirmReset(true)}
+            disabled={!isAdmin}
+            className={`flex flex-col items-center gap-2 rounded-2xl border border-stone-200 bg-stone-50/60 p-5 text-sm font-bold text-stone-700 transition ${
+              isAdmin
+                ? "hover:border-amber-300 hover:bg-amber-50"
+                : "cursor-not-allowed opacity-55"
+            }`}
           >
             <RotateCcw className="h-6 w-6 text-amber-600" />
             Reset Data Demo
             <span className="text-[11px] font-medium text-stone-400">
-              Kembalikan ke data awal mockup
+              {isAdmin ? "Kembalikan ke data awal mockup" : "Khusus akses Admin"}
             </span>
           </button>
         </div>

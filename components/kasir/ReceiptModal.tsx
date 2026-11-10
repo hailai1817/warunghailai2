@@ -60,6 +60,12 @@ export default function ReceiptModal({ transaction, onClose }: ReceiptModalProps
               <span>Waktu</span>
               <span>{formatDateTime(transaction.date)}</span>
             </div>
+            {transaction.customerName && (
+              <div className="flex justify-between">
+                <span>{transaction.orderedByRole === "pelanggan" ? "Pelanggan" : "Operator"}</span>
+                <span className="font-semibold">{transaction.customerName}</span>
+              </div>
+            )}
 
             <div className="my-2 border-t border-dashed border-black" />
 

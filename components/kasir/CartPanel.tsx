@@ -21,6 +21,7 @@ import type { DiscountType, PaymentMethod, Transaction } from "@/lib/types";
 import { PAYMENT_METHODS } from "@/lib/types";
 import { QUICK_CASH } from "@/lib/constants";
 import { DEFAULT_SETTINGS, FALLBACK_IMAGE } from "@/lib/mock-data";
+import { useAuth } from "@/context/AuthContext";
 import { useStore } from "@/context/StoreContext";
 import { formatRupiah } from "@/lib/format";
 import EmptyState from "@/components/ui/EmptyState";
@@ -56,7 +57,9 @@ function CartItemThumbnail({ src, alt }: { src?: string; alt: string }) {
 }
 
 export default function CartPanel({ onClose, onSuccess }: CartPanelProps) {
+  const { user } = useAuth();
   const { cart, products, settings, checkout, updateCartQty, removeFromCart, clearCart } = useStore();
+  const isCustomer = user?.role === "pelanggan";
   const [method, setMethod] = useState<PaymentMethod>("Tunai");
   const [cashStr, setCashStr] = useState("");
   const [error, setError] = useState("");
@@ -75,12 +78,17 @@ export default function CartPanel({ onClose, onSuccess }: CartPanelProps) {
     discountType === "percent"
       ? Math.round((subtotal * Math.min(Math.max(0, rawValue), 100)) / 100)
       : Math.min(Math.max(0, Math.round(rawValue)), subtotal);
-  const discount = discountOpen && subtotal > 0 ? Math.min(discountAmount, subtotal) : 0;
+  const discount = !isCustomer && discountOpen && subtotal > 0 ? Math.min(discountAmount, subtotal) : 0;
   const taxable = subtotal - discount;
   const tax = Math.round((taxable * settings.taxRate) / 100);
   const total = taxable + tax;
   const cash = parseInt(cashStr.replace(/\D/g, ""), 10) || 0;
-  const paid = method === "Tunai" ? cash : total;
+  const paid =
+    method === "Tunai"
+      ? isCustomer && cashStr.trim() === ""
+        ? total
+        : cash
+      : total;
   const change = paid - total;
 
   const handleCashChange = (value: string) => {
@@ -110,7 +118,8 @@ export default function CartPanel({ onClose, onSuccess }: CartPanelProps) {
       paid,
       discount > 0
         ? { type: discountType, value: rawValue, amount: discount }
-        : undefined
+        : undefined,
+      user ? { customerName: user.name, orderedByRole: user.role } : undefined
     );
     if (!result.ok) {
       setError(result.error);
@@ -129,7 +138,9 @@ export default function CartPanel({ onClose, onSuccess }: CartPanelProps) {
       <div className="flex items-center justify-between border-b border-dashed border-stone-200 px-4 py-3">
         <div className="flex items-center gap-2">
           <ShoppingBasket className="h-5 w-5 text-[var(--color-terracotta)]" />
-          <h2 className="text-base font-extrabold text-stone-800">Keranjang Belanja</h2>
+          <h2 className="text-base font-extrabold text-stone-800">
+            {isCustomer ? "Pesanan Saya" : "Keranjang Belanja"}
+          </h2>
           {cart.length > 0 && (
             <span className="rounded-full bg-[var(--color-terracotta)] px-2 py-0.5 text-xs font-bold text-white">
               {cart.reduce((s, i) => s + i.qty, 0)} item
@@ -246,96 +257,98 @@ export default function CartPanel({ onClose, onSuccess }: CartPanelProps) {
           </div>
         </div>
 
-        <div className="mt-4">
-          <div className="mb-2 flex items-center justify-between">
-            <button
-              onClick={() => setDiscountOpen((o) => !o)}
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--color-terracotta)] transition hover:opacity-80"
-              aria-expanded={discountOpen}
-            >
-              <Tag className="h-3.5 w-3.5" />
-              Diskon / Promo
-            </button>
-            {discount > 0 && (
+        {!isCustomer && (
+          <div className="mt-4">
+            <div className="mb-2 flex items-center justify-between">
               <button
-                onClick={resetDiscount}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-stone-400 transition hover:text-red-600"
+                onClick={() => setDiscountOpen((o) => !o)}
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--color-terracotta)] transition hover:opacity-80"
+                aria-expanded={discountOpen}
               >
-                <RotateCcw className="h-3 w-3" /> Hapus diskon
+                <Tag className="h-3.5 w-3.5" />
+                Diskon / Promo
               </button>
+              {discount > 0 && (
+                <button
+                  onClick={resetDiscount}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-stone-400 transition hover:text-red-600"
+                >
+                  <RotateCcw className="h-3 w-3" /> Hapus diskon
+                </button>
+              )}
+            </div>
+
+            {discountOpen && (
+              <div className="space-y-2.5 rounded-xl border border-dashed border-[var(--color-terracotta)]/40 bg-white p-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wide text-stone-500">
+                    Jenis
+                  </span>
+                  <div className="ml-auto flex rounded-lg border border-stone-200 bg-stone-100 p-0.5">
+                    {(["percent", "nominal"] as DiscountType[]).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => {
+                          setDiscountType(t);
+                          setDiscountValue("");
+                        }}
+                        className={`rounded-md px-3 py-1 text-xs font-bold transition ${
+                          discountType === t
+                            ? "bg-[var(--color-terracotta)] text-white shadow"
+                            : "text-stone-500 hover:text-stone-700"
+                        }`}
+                      >
+                        {t === "percent" ? "%" : "Rp"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="relative">
+                  {discountType === "nominal" && (
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-stone-400">
+                      Rp
+                    </span>
+                  )}
+                  <input
+                    inputMode="decimal"
+                    value={discountValue}
+                    onChange={(e) => handleDiscountChange(e.target.value)}
+                    placeholder={
+                      discountType === "percent"
+                        ? "Masukkan persen diskon, cth: 10"
+                        : "Masukkan nominal diskon, cth: 5000"
+                    }
+                    className={`w-full rounded-lg border-2 border-stone-200 bg-white py-2 text-sm font-bold tabular-nums text-stone-800 outline-none transition focus:border-[var(--color-terracotta)] ${
+                      discountType === "nominal" ? "pl-9 pr-3" : "px-3"
+                    }`}
+                  />
+                </div>
+
+                {discountType === "percent" && presets.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {presets.map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => setDiscountValue(String(v))}
+                        className="rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-600 transition hover:border-amber-300 hover:bg-amber-50"
+                      >
+                        {v}%
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <p className="flex items-center gap-1.5 text-[11px] text-stone-400">
+                  <Percent className="h-3 w-3" />
+                  Potongan diskon berlaku sebelum PPN. Preset bisa dikustom di menu Pengaturan.
+                </p>
+              </div>
             )}
           </div>
-
-          {discountOpen && (
-            <div className="space-y-2.5 rounded-xl border border-dashed border-[var(--color-terracotta)]/40 bg-white p-3">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wide text-stone-500">
-                  Jenis
-                </span>
-                <div className="ml-auto flex rounded-lg border border-stone-200 bg-stone-100 p-0.5">
-                  {(["percent", "nominal"] as DiscountType[]).map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => {
-                        setDiscountType(t);
-                        setDiscountValue("");
-                      }}
-                      className={`rounded-md px-3 py-1 text-xs font-bold transition ${
-                        discountType === t
-                          ? "bg-[var(--color-terracotta)] text-white shadow"
-                          : "text-stone-500 hover:text-stone-700"
-                      }`}
-                    >
-                      {t === "percent" ? "%" : "Rp"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="relative">
-                {discountType === "nominal" && (
-                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-stone-400">
-                    Rp
-                  </span>
-                )}
-                <input
-                  inputMode="decimal"
-                  value={discountValue}
-                  onChange={(e) => handleDiscountChange(e.target.value)}
-                  placeholder={
-                    discountType === "percent"
-                      ? "Masukkan persen diskon, cth: 10"
-                      : "Masukkan nominal diskon, cth: 5000"
-                  }
-                  className={`w-full rounded-lg border-2 border-stone-200 bg-white py-2 text-sm font-bold tabular-nums text-stone-800 outline-none transition focus:border-[var(--color-terracotta)] ${
-                    discountType === "nominal" ? "pl-9 pr-3" : "px-3"
-                  }`}
-                />
-              </div>
-
-              {discountType === "percent" && presets.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {presets.map((v) => (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => setDiscountValue(String(v))}
-                      className="rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-600 transition hover:border-amber-300 hover:bg-amber-50"
-                    >
-                      {v}%
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              <p className="flex items-center gap-1.5 text-[11px] text-stone-400">
-                <Percent className="h-3 w-3" />
-                Potongan diskon berlaku sebelum PPN. Preset bisa dikustom di menu Pengaturan.
-              </p>
-            </div>
-          )}
-        </div>
+        )}
 
         <div className="mt-4">
           <p className="mb-2 text-xs font-bold uppercase tracking-wide text-stone-500">
@@ -375,7 +388,7 @@ export default function CartPanel({ onClose, onSuccess }: CartPanelProps) {
                   inputMode="numeric"
                   value={cashStr}
                   onChange={(e) => handleCashChange(e.target.value)}
-                  placeholder="0"
+                  placeholder={isCustomer ? String(total) : "0"}
                   className="w-full rounded-xl border-2 border-stone-200 bg-white py-2.5 pl-9 pr-3 text-right text-base font-bold tabular-nums text-stone-800 outline-none transition focus:border-[var(--color-terracotta)]"
                 />
               </div>
@@ -386,6 +399,11 @@ export default function CartPanel({ onClose, onSuccess }: CartPanelProps) {
                 Uang Pas
               </button>
             </div>
+            {isCustomer && cashStr.trim() === "" && (
+              <p className="mt-1.5 text-[11px] text-stone-400">
+                Kosongkan untuk langsung bayar uang pas di kasir sebesar {formatRupiah(total)}.
+              </p>
+            )}
             <div className="mt-2 flex flex-wrap gap-1.5">
               {Array.from(new Set(quickAmounts)).map((amount) => (
                 <button
@@ -427,7 +445,7 @@ export default function CartPanel({ onClose, onSuccess }: CartPanelProps) {
           className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[var(--color-terracotta)] to-amber-600 px-4 py-3.5 text-sm font-extrabold text-white shadow-lg shadow-orange-200 transition hover:opacity-90 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Receipt className="h-5 w-5" />
-          Proses Transaksi &amp; Cetak Struk
+          {isCustomer ? "Pesan Sekarang & Lihat Struk" : "Proses Transaksi & Cetak Struk"}
         </button>
       </div>
     </div>

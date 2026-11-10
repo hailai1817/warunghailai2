@@ -1,16 +1,9 @@
 "use client";
 
-import { BarChart3, Package, Settings, ShoppingBasket, Star } from "lucide-react";
 import type { ViewKey } from "@/lib/types";
+import { useAuth } from "@/context/AuthContext";
 import { useStore } from "@/context/StoreContext";
-
-const ITEMS: { key: ViewKey; label: string; icon: typeof ShoppingBasket }[] = [
-  { key: "kasir", label: "Kasir", icon: ShoppingBasket },
-  { key: "stok", label: "Stok", icon: Package },
-  { key: "laporan", label: "Laporan", icon: BarChart3 },
-  { key: "ulasan", label: "Ulasan", icon: Star },
-  { key: "pengaturan", label: "Setting", icon: Settings },
-];
+import { getNavItemsForRole } from "./NavList";
 
 interface BottomNavProps {
   view: ViewKey;
@@ -18,13 +11,15 @@ interface BottomNavProps {
 }
 
 export default function BottomNav({ view, onNavigate }: BottomNavProps) {
+  const { user } = useAuth();
   const { cart } = useStore();
+  const items = getNavItemsForRole(user?.role);
   const cartCount = cart.reduce((sum, i) => sum + i.qty, 0);
 
   return (
     <nav className="no-print fixed inset-x-0 bottom-0 z-30 border-t border-stone-200 bg-white/95 backdrop-blur lg:hidden">
-      <div className="grid grid-cols-5">
-        {ITEMS.map((item) => {
+      <div className={items.length === 3 ? "grid grid-cols-3" : "grid grid-cols-5"}>
+        {items.map((item) => {
           const active = view === item.key;
           const Icon = item.icon;
           return (
@@ -41,7 +36,7 @@ export default function BottomNav({ view, onNavigate }: BottomNavProps) {
                 </span>
               )}
               <Icon className="h-5 w-5" />
-              {item.label}
+              {item.shortLabel}
             </button>
           );
         })}

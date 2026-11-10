@@ -18,6 +18,7 @@ import type {
   StoreSettings,
   Transaction,
   TransactionDiscount,
+  UserRole,
 } from "@/lib/types";
 import { STORAGE_KEYS } from "@/lib/constants";
 import {
@@ -88,7 +89,8 @@ interface StoreContextValue {
   checkout: (
     method: PaymentMethod,
     cashReceived: number,
-    discount?: TransactionDiscount
+    discount?: TransactionDiscount,
+    customerMeta?: { customerName?: string; orderedByRole?: UserRole }
   ) => CheckoutResult;
   addProduct: (data: Omit<Product, "id">) => void;
   updateProduct: (id: string, patch: Partial<Omit<Product, "id">>) => void;
@@ -272,7 +274,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const clearCart = useCallback(() => setCart([]), []);
 
   const checkout = useCallback(
-    (method: PaymentMethod, cashReceived: number, discount?: TransactionDiscount): CheckoutResult => {
+    (
+      method: PaymentMethod,
+      cashReceived: number,
+      discount?: TransactionDiscount,
+      customerMeta?: { customerName?: string; orderedByRole?: UserRole }
+    ): CheckoutResult => {
       const items = cart;
       if (items.length === 0) {
         return { ok: false, error: "Keranjang masih kosong." };
@@ -326,6 +333,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const transaction: Transaction = {
         id: generateTransactionId(todayMaxSeq + 1, txDateObj),
         date: txDateObj.toISOString(),
+        customerName: customerMeta?.customerName,
+        orderedByRole: customerMeta?.orderedByRole,
         items: items.map((i) => ({
           productId: i.productId,
           name: i.name,

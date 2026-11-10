@@ -274,8 +274,16 @@ export default function ReportsView() {
                   .join(", ");
                 return (
                   <tr key={t.id} className="transition hover:bg-amber-50/40">
-                    <td className="px-5 py-3 font-mono text-xs font-bold text-[var(--color-terracotta)]">
-                      {t.id}
+                    <td className="px-5 py-3">
+                      <p className="font-mono text-xs font-bold text-[var(--color-terracotta)]">
+                        {t.id}
+                      </p>
+                      {t.customerName && (
+                        <p className="text-[11px] font-medium text-stone-400">
+                          {t.orderedByRole === "pelanggan" ? "Pelanggan: " : "Kasir: "}
+                          {t.customerName}
+                        </p>
+                      )}
                     </td>
                     <td className="px-5 py-3">
                       <p className="font-semibold text-stone-800">{formatDateTime(t.date)}</p>

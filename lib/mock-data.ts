@@ -336,6 +336,9 @@ export const INITIAL_REVIEWS: CustomerReview[] = [
     avatar: avatarImg("photo-1519085360753-af0119f7cbe7"),
     comment: "Donat gulanya stok habis terus setiap kali saya datang. Semoga sering di-restock.",
     date: reviewDate(5, 9, 30),
+    adminReply: "Terima kasih masukannya Kak Rizky! Jadwal produksi Donat Gula sudah kami tambah pagi & sore supaya selalu tersedia.",
+    adminReplyBy: "Admin HaiLai",
+    adminReplyDate: reviewDate(5, 11, 15),
   },
   {
     id: "R07",

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Barcode, Search, ShoppingBasket } from "lucide-react";
+import { Barcode, Search, ShoppingBasket, Sparkles } from "lucide-react";
 import type { Category, Transaction } from "@/lib/types";
 import { CATEGORIES } from "@/lib/types";
+import { useAuth } from "@/context/AuthContext";
 import { useStore } from "@/context/StoreContext";
 import { formatRupiah } from "@/lib/format";
 import ProductCard from "./ProductCard";
@@ -14,7 +15,9 @@ import EmptyState from "@/components/ui/EmptyState";
 type CategoryFilter = "Semua" | Category;
 
 export default function KasirView() {
+  const { user } = useAuth();
   const { products, cart, addToCart } = useStore();
+  const isCustomer = user?.role === "pelanggan";
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<CategoryFilter>("Semua");
   const [cartOpen, setCartOpen] = useState(false);
@@ -25,11 +28,13 @@ export default function KasirView() {
   const scanTimer = useRef<number | null>(null);
 
   useEffect(() => {
-    scanRef.current?.focus();
+    if (!isCustomer) {
+      scanRef.current?.focus();
+    }
     return () => {
       if (scanTimer.current) window.clearTimeout(scanTimer.current);
     };
-  }, []);
+  }, [isCustomer]);
 
   const clearScanMsg = () => {
     if (scanTimer.current) window.clearTimeout(scanTimer.current);
@@ -107,39 +112,55 @@ export default function KasirView() {
     <div className="flex h-full">
       <div className="min-w-0 flex-1">
         <div className="space-y-4 p-4 sm:p-6">
-          <div className="rounded-2xl border-2 border-dashed border-[var(--color-terracotta)]/40 bg-white/70 px-4 py-3">
-            <div className="flex items-center gap-3">
-              <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--color-terracotta)] text-white sm:flex">
-                <Barcode className="h-5 w-5" />
+          {isCustomer ? (
+            <div className="flex items-center gap-3 rounded-2xl border border-amber-200/80 bg-white/80 px-4 py-3 shadow-sm">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-[var(--color-terracotta)] text-white shadow">
+                <Sparkles className="h-5 w-5" />
               </div>
-              <input
-                ref={scanRef}
-                value={scan}
-                onChange={(e) => setScan(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleScan();
-                  }
-                }}
-                placeholder="Scan barcode produk di sini, lalu tekan Enter..."
-                className="w-full bg-transparent font-mono text-sm tracking-wider text-stone-800 outline-none placeholder:font-sans placeholder:text-stone-400"
-              />
+              <div>
+                <p className="text-sm font-extrabold text-stone-800">
+                  Selamat datang, {user?.name}!
+                </p>
+                <p className="text-xs text-stone-500">
+                  Silakan pilih roti, kue, atau minuman favorit Anda untuk langsung dipesan.
+                </p>
+              </div>
             </div>
-            <p
-              className={`mt-1 text-xs sm:ml-12 ${
-                scanMsg
-                  ? scanMsg.ok
-                    ? "font-semibold text-emerald-600"
-                    : "font-semibold text-red-600"
-                  : "text-stone-400"
-              }`}
-            >
-              {scanMsg
-                ? scanMsg.text
-                : "Arahkan scanner fisik ke barcode produk, produk otomatis masuk ke keranjang."}
-            </p>
-          </div>
+          ) : (
+            <div className="rounded-2xl border-2 border-dashed border-[var(--color-terracotta)]/40 bg-white/70 px-4 py-3">
+              <div className="flex items-center gap-3">
+                <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--color-terracotta)] text-white sm:flex">
+                  <Barcode className="h-5 w-5" />
+                </div>
+                <input
+                  ref={scanRef}
+                  value={scan}
+                  onChange={(e) => setScan(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleScan();
+                    }
+                  }}
+                  placeholder="Scan barcode produk di sini, lalu tekan Enter..."
+                  className="w-full bg-transparent font-mono text-sm tracking-wider text-stone-800 outline-none placeholder:font-sans placeholder:text-stone-400"
+                />
+              </div>
+              <p
+                className={`mt-1 text-xs sm:ml-12 ${
+                  scanMsg
+                    ? scanMsg.ok
+                      ? "font-semibold text-emerald-600"
+                      : "font-semibold text-red-600"
+                    : "text-stone-400"
+                }`}
+              >
+                {scanMsg
+                  ? scanMsg.text
+                  : "Arahkan scanner fisik ke barcode produk, produk otomatis masuk ke keranjang."}
+              </p>
+            </div>
+          )}
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative flex-1">
