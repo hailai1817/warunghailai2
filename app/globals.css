@@ -172,47 +172,188 @@ button:not(:disabled):active {
   }
 }
 
-/* ---------- Print: thermal receipt (80mm) ---------- */
+/* ---------- Print Configuration: POS-58 Thermal & Report ---------- */
 #report-print-area {
   display: none;
 }
 
 @media print {
   @page {
-    margin: 4mm;
+    size: 58mm auto;
+    margin: 0mm;
   }
 
-  body * {
-    visibility: hidden;
+  @page receipt {
+    size: 58mm auto;
+    margin: 0mm;
   }
 
-  #receipt-print-area,
-  #receipt-print-area * {
-    visibility: visible;
+  @page report {
+    size: A4 portrait;
+    margin: 10mm;
   }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    text-shadow: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+
+  html,
+  body {
+    width: 58mm !important;
+    max-width: 58mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 0 !important;
+    height: auto !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* When printing thermal receipt (modal open or receipt area exists) */
+  body.receipt-modal-open,
+  body:has(#receipt-print-area) {
+    width: 58mm !important;
+    max-width: 58mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 0 !important;
+    height: auto !important;
+    background: #ffffff !important;
+  }
+
+  /* CRITICAL: Completely hide all main application containers to eliminate 
+     100vh, flex centering, padding, margins, and blank pages */
+  body.receipt-modal-open > *:not(#receipt-modal-portal):not(#receipt-print-area),
+  body:has(#receipt-print-area) > *:not(#receipt-modal-portal):not(#receipt-print-area) {
+    display: none !important;
+  }
+
+  /* Reset portal wrapper: remove any fixed positioning and flex alignment */
+  #receipt-modal-portal {
+    position: static !important;
+    display: block !important;
+    width: 58mm !important;
+    max-width: 58mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 0 !important;
+    height: auto !important;
+    transform: none !important;
+  }
+
+  #receipt-modal-portal .receipt-modal-panel {
+    position: static !important;
+    display: block !important;
+    width: 58mm !important;
+    max-width: 58mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 0 !important;
+    height: auto !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+    transform: none !important;
+  }
+
+  #receipt-modal-portal .receipt-modal-body {
+    position: static !important;
+    display: block !important;
+    width: 58mm !important;
+    max-width: 58mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 0 !important;
+    height: auto !important;
+    background: transparent !important;
+    overflow: visible !important;
+  }
+
+  /* Thermal Receipt Container for POS-58 thermal paper */
   #receipt-print-area {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 72mm;
-    margin: 0;
+    page: receipt;
+    position: static !important;
+    display: block !important;
+    width: 58mm !important;
+    max-width: 58mm !important;
+    min-width: 58mm !important;
+    margin: 0 !important;
+    padding: 1.5mm 3mm 3mm 3mm !important;
+    box-sizing: border-box !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    border: none !important;
+    page-break-before: avoid !important;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+    break-before: avoid !important;
+    break-after: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  #receipt-print-area * {
+    color: #000000 !important;
+    border-color: #000000 !important;
     box-shadow: none !important;
   }
 
-  body:not(:has(#receipt-print-area)) #report-print-area,
-  body:not(:has(#receipt-print-area)) #report-print-area * {
-    visibility: visible;
+  /* Fallback: if not using portal */
+  body:not(.receipt-modal-open):has(#receipt-print-area) * {
+    visibility: hidden;
   }
-  body:not(:has(#receipt-print-area)) #report-print-area {
+
+  body:not(.receipt-modal-open):has(#receipt-print-area) #receipt-print-area,
+  body:not(.receipt-modal-open):has(#receipt-print-area) #receipt-print-area * {
+    visibility: visible !important;
+  }
+
+  body:not(.receipt-modal-open):has(#receipt-print-area) #receipt-print-area {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+  }
+
+  /* Always hide non-printable UI elements */
+  .no-print,
+  .click-spark-holder,
+  .click-spark {
+    display: none !important;
+  }
+
+  /* ---------- Report Table Printing (A4 / Standard) ---------- */
+  body:not(.receipt-modal-open):not(:has(#receipt-print-area)) {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  body:not(.receipt-modal-open):not(:has(#receipt-print-area)) * {
+    visibility: hidden;
+  }
+
+  body:not(.receipt-modal-open):not(:has(#receipt-print-area)) #report-print-area,
+  body:not(.receipt-modal-open):not(:has(#receipt-print-area)) #report-print-area * {
+    visibility: visible !important;
+  }
+
+  body:not(.receipt-modal-open):not(:has(#receipt-print-area)) #report-print-area {
+    page: report;
     display: block !important;
     position: absolute;
     left: 0;
     top: 0;
     width: 100%;
     margin: 0;
-  }
-
-  .no-print {
-    display: none !important;
+    padding: 0;
+    background: #ffffff !important;
   }
 }
