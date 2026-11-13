@@ -176,17 +176,22 @@ export default function ReportsView() {
       </div>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
-        <div className="xl:col-span-1">
-          <SalesChart transactions={filtered} days={7} today={baseDate} />
+        <div className="xl:col-span-2">
+          <SalesChart transactions={transactions} days={7} today={baseDate} />
         </div>
 
-        <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm xl:col-span-2">
-          <div className="flex flex-col gap-4">
+        <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm xl:col-span-1 flex flex-col justify-between">
+          <div className="space-y-4">
             <div className="flex items-center gap-2">
               <CalendarDays className="h-5 w-5 text-[var(--color-terracotta)]" />
-              <h3 className="text-sm font-extrabold text-stone-800">Filter Rentang Tanggal</h3>
+              <div>
+                <h3 className="text-sm font-extrabold text-stone-800">Filter Riwayat Transaksi</h3>
+                <p className="text-xs text-stone-500">Rentang tanggal tabel di bawah</p>
+              </div>
             </div>
-            <div className="flex flex-wrap items-end gap-3">
+
+            <div>
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-stone-400">Pilihan Cepat</p>
               <div className="flex flex-wrap gap-1.5">
                 {(
                   [
@@ -201,27 +206,36 @@ export default function ReportsView() {
                   </button>
                 ))}
               </div>
-              <div className="ml-auto flex flex-wrap items-center gap-2">
-                <label className="flex items-center gap-2 text-xs font-semibold text-stone-500">
-                  Dari
+            </div>
+
+            <div className="space-y-2 pt-1 border-t border-stone-100">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-stone-400">Kustom Tanggal</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-2">
+                <label className="flex items-center justify-between gap-2 text-xs font-semibold text-stone-600">
+                  <span className="w-14 shrink-0">Dari</span>
                   <input
                     type="date"
                     value={from}
                     onChange={(e) => setFrom(e.target.value)}
-                    className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 outline-none focus:border-[var(--color-terracotta)]"
+                    className="flex-1 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs text-stone-700 outline-none transition focus:border-[var(--color-terracotta)] focus:ring-1 focus:ring-[var(--color-terracotta)]"
                   />
                 </label>
-                <label className="flex items-center gap-2 text-xs font-semibold text-stone-500">
-                  Sampai
+                <label className="flex items-center justify-between gap-2 text-xs font-semibold text-stone-600">
+                  <span className="w-14 shrink-0">Sampai</span>
                   <input
                     type="date"
                     value={to}
                     onChange={(e) => setTo(e.target.value)}
-                    className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 outline-none focus:border-[var(--color-terracotta)]"
+                    className="flex-1 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs text-stone-700 outline-none transition focus:border-[var(--color-terracotta)] focus:ring-1 focus:ring-[var(--color-terracotta)]"
                   />
                 </label>
               </div>
             </div>
+          </div>
+
+          <div className="mt-4 pt-3 border-t border-stone-100 text-xs text-stone-500 flex items-center justify-between">
+            <span>Data terpilih:</span>
+            <span className="font-bold text-stone-800">{filtered.length} nota ({rangeLabel})</span>
           </div>
         </div>
       </div>
