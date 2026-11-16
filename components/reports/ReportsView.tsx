@@ -20,6 +20,7 @@ import {
   formatDateTime,
   formatDateShort,
   formatRupiah,
+  getEffectiveWorkingDate,
   toCSV,
 } from "@/lib/format";
 import { getTotalStock } from "@/lib/stock";
@@ -47,11 +48,8 @@ const METHOD_BADGE: Record<PaymentMethod, "terracotta" | "amber" | "choco"> = {
 export default function ReportsView() {
   const { transactions, products, settings } = useStore();
   const baseDate = useMemo(
-    () =>
-      settings.workingDate
-        ? new Date(`${settings.workingDate}T12:00:00`)
-        : new Date(),
-    [settings.workingDate]
+    () => getEffectiveWorkingDate(settings),
+    [settings]
   );
   const [from, setFrom] = useState(() => toISODate(baseDate));
   const [to, setTo] = useState(() => toISODate(baseDate));

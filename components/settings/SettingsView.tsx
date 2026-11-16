@@ -3,17 +3,21 @@
 import { useState } from "react";
 import {
   BadgePercent,
+  Calendar,
   Check,
+  CheckCircle2,
+  Clock,
   Cloud,
   Database,
   Download,
   Info,
   Palette,
+  RotateCcw,
   Save,
   Store,
   Trash2,
-  RotateCcw,
   Wifi,
+  Zap,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useStore } from "@/context/StoreContext";
@@ -31,6 +35,16 @@ export default function SettingsView() {
   const { settings, updateSettings, resetData, clearTransactions, products, transactions, reviews, employees } =
     useStore();
   const [form, setForm] = useState<StoreSettings>(settings);
+  const [useRealtime, setUseRealtime] = useState<boolean>(() => {
+    return settings.useRealtimeDate !== false && !settings.workingDate;
+  });
+  const [prevSettings, setPrevSettings] = useState(settings);
+  if (prevSettings !== settings) {
+    setPrevSettings(settings);
+    setForm(settings);
+    setUseRealtime(settings.useRealtimeDate !== false && !settings.workingDate);
+  }
+
   const theme = settings.theme ?? DEFAULT_SETTINGS.theme ?? BAKERY_THEME;
   const cloudEnabled = hasFirebaseConfig();
   const [cloudStatus, setCloudStatus] = useState<CloudConnectionStatus | null>(null);
@@ -44,6 +58,13 @@ export default function SettingsView() {
   const [toast, setToast] = useState("");
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmClearTx, setConfirmClearTx] = useState(false);
+
+  const todayFormatted = new Date().toLocaleDateString("id-ID", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 
   const showToast = (message: string) => {
     setToast(message);
@@ -61,19 +82,24 @@ export default function SettingsView() {
       .map((s) => Number(s.trim().replace(/[^\d.]/g, "")))
       .filter((n) => Number.isFinite(n) && n > 0 && n <= 100)
       .map((n) => Math.round(n));
-    const { storeName, address, phone, receiptFooter, workingDate } = form;
+    const { storeName, address, phone, receiptFooter } = form;
     updateSettings({
       storeName,
       address,
       phone,
       receiptFooter,
-      workingDate: workingDate || undefined,
+      useRealtimeDate: useRealtime,
+      workingDate: useRealtime ? undefined : form.workingDate || undefined,
       taxRate,
       discountPresets,
       theme: settings.theme ?? theme,
     });
     setPresetStr(discountPresets.join(", "));
-    showToast("Pengaturan berhasil disimpan.");
+    showToast(
+      useRealtime
+        ? "Pengaturan disimpan. Tanggal kerja otomatis real-time aktif."
+        : "Pengaturan disimpan. Tanggal kerja kustom manual aktif."
+    );
   };
 
   const handleTestCloud = async () => {
@@ -159,19 +185,110 @@ export default function SettingsView() {
               className={inputClass}
             />
           </div>
-          <div>
-            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-stone-500">
-              Tanggal Kerja (opsional)
-            </label>
-            <input
-              type="date"
-              value={form.workingDate ?? ""}
-              onChange={(e) => setField("workingDate", e.target.value)}
-              className={inputClass}
-            />
-            <p className="mt-1 text-xs text-stone-400">
-              Kosongkan untuk memakai tanggal sistem. Tanggal ini dipakai pada halaman Kasir, struk, dan laporan.
-            </p>
+          <div className="sm:col-span-2 rounded-2xl border border-stone-200/90 bg-stone-50/70 p-4">
+            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between mb-3">
+              <div>
+                <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-stone-700">
+                  <Calendar className="h-4 w-4 text-[var(--color-terracotta)]" />
+                  Tanggal Kerja Operasional
+                </label>
+                <p className="text-xs text-stone-500">
+                  Menentukan tanggal pencatatan transaksi kasir, struk belanja, dan laporan
+                </p>
+              </div>
+
+              {/* Mode Selector Buttons */}
+              <div className="flex rounded-xl border border-stone-200 bg-white p-1 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUseRealtime(true);
+                    setField("workingDate", "");
+                  }}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                    useRealtime
+                      ? "bg-emerald-600 text-white shadow-sm"
+                      : "text-stone-600 hover:text-stone-900"
+                  }`}
+                >
+                  <Zap className="h-3.5 w-3.5" />
+                  Otomatis Real-Time
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUseRealtime(false);
+                    if (!form.workingDate) {
+                      setField("workingDate", new Date().toLocaleDateString("en-CA"));
+                    }
+                  }}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                    !useRealtime
+                      ? "bg-[var(--color-choco)] text-[var(--color-cream)] shadow-sm"
+                      : "text-stone-600 hover:text-stone-900"
+                  }`}
+                >
+                  <Clock className="h-3.5 w-3.5" />
+                  Kustom Manual
+                </button>
+              </div>
+            </div>
+
+            {useRealtime ? (
+              <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/80 p-3.5 text-xs text-emerald-900">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500 text-white shadow-sm">
+                  <CheckCircle2 className="h-4 w-4" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-1.5 font-extrabold text-emerald-800">
+                    <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>Mode Otomatis Real-Time Aktif (Direkomendasikan)</span>
+                  </div>
+                  <p className="mt-0.5 text-emerald-700">
+                    Hari ini: <span className="font-extrabold underline">{todayFormatted}</span>. Setiap hari tanggal transaksi dan laporan akan berganti otomatis mengikuti waktu nyata tanpa perlu diubah manual.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/80 p-3.5 text-xs text-amber-900">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="flex-1">
+                    <label className="block mb-1 font-bold text-amber-900">
+                      Pilih Tanggal Kerja Khusus (Manual):
+                    </label>
+                    <input
+                      type="date"
+                      value={form.workingDate ?? ""}
+                      onChange={(e) => setField("workingDate", e.target.value)}
+                      className="w-full rounded-xl border-2 border-amber-300 bg-white px-3.5 py-2 text-sm font-semibold text-stone-800 outline-none transition focus:border-[var(--color-terracotta)]"
+                    />
+                  </div>
+                  <div className="flex sm:flex-col gap-2 pt-1 sm:pt-4">
+                    <button
+                      type="button"
+                      onClick={() => setField("workingDate", new Date().toLocaleDateString("en-CA"))}
+                      className="rounded-xl border border-amber-300 bg-white px-3 py-2 text-xs font-bold text-amber-800 hover:bg-amber-100 transition shadow-sm"
+                    >
+                      Set ke Hari Ini
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUseRealtime(true);
+                        setField("workingDate", "");
+                      }}
+                      className="inline-flex items-center justify-center gap-1 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-sm"
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                      Gunakan Real-Time
+                    </button>
+                  </div>
+                </div>
+                <p className="text-amber-800/90 leading-relaxed">
+                  ⚠️ Perhatian: Tanggal ini akan mengunci semua transaksi kasir dan laporan pada tanggal di atas sampai Anda mengubahnya atau mengaktifkan kembali mode Real-Time.
+                </p>
+              </div>
+            )}
           </div>
           <div className="sm:col-span-2">
             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-stone-500">

@@ -30,7 +30,10 @@ import {
   INITIAL_TRANSACTIONS,
   migrateProductCatalog,
 } from "@/lib/mock-data";
-import { generateTransactionId, workingDateObject } from "@/lib/format";
+import {
+  generateTransactionId,
+  getEffectiveWorkingDate,
+} from "@/lib/format";
 import { applyThemeVars, BAKERY_THEME } from "@/lib/color";
 import { hasFirebaseConfig } from "@/lib/firebase";
 import { cloudLoadAll, cloudSave } from "@/lib/firestore-service";
@@ -134,7 +137,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const loadedProducts = loadFromStorage(STORAGE_KEYS.products, INITIAL_PRODUCTS);
     setProducts(migrateProductCatalog(loadedProducts));
     setTransactions(loadFromStorage(STORAGE_KEYS.transactions, INITIAL_TRANSACTIONS));
-    setSettings(loadFromStorage(STORAGE_KEYS.settings, DEFAULT_SETTINGS));
+    const loadedSettings = loadFromStorage(STORAGE_KEYS.settings, DEFAULT_SETTINGS);
+    setSettings({
+      ...loadedSettings,
+      useRealtimeDate: loadedSettings.useRealtimeDate ?? true,
+    });
     setEmployees(loadFromStorage(STORAGE_KEYS.employees, INITIAL_EMPLOYEES));
 
     // Merge default avatar pictures for reviews that don't have one yet
@@ -186,7 +193,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             })
           );
         }
-        if (cloud.settings) setSettings(cloud.settings);
+        if (cloud.settings) {
+          setSettings({
+            ...cloud.settings,
+            useRealtimeDate: cloud.settings.useRealtimeDate ?? true,
+          });
+        }
       }
       setCloudReady(true);
     })();
@@ -339,7 +351,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         };
       }
 
-      const txDateObj = workingDateObject(settings.workingDate);
+      const txDateObj = getEffectiveWorkingDate(settings);
       const yy = String(txDateObj.getFullYear()).slice(-2);
       const mm = String(txDateObj.getMonth() + 1).padStart(2, "0");
       const dd = String(txDateObj.getDate()).padStart(2, "0");

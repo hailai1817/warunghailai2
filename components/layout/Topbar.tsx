@@ -5,6 +5,7 @@ import { LogOut, Menu, X } from "lucide-react";
 import type { UserRole, ViewKey } from "@/lib/types";
 import { useAuth } from "@/context/AuthContext";
 import { useStore } from "@/context/StoreContext";
+import { getEffectiveWorkingDate } from "@/lib/format";
 import BrandLogo from "@/components/brand/BrandLogo";
 
 interface TopbarProps {
@@ -62,9 +63,8 @@ export default function Topbar({ view, onOpenMenu, menuOpen, onCloseMenu, onLogo
           subtitle: "Pilih roti, kue, dan minuman favorit untuk dipesan",
         }
       : VIEW_TITLES[view];
-  const displayDate = settings.workingDate
-    ? new Date(`${settings.workingDate}T12:00:00`)
-    : now;
+  const isCustomWorkingDate = settings.useRealtimeDate === false && !!settings.workingDate;
+  const displayDate = getEffectiveWorkingDate(settings, now);
   const dateLabel = displayDate.toLocaleDateString("id-ID", {
     weekday: "long",
     day: "numeric",
@@ -98,20 +98,35 @@ export default function Topbar({ view, onOpenMenu, menuOpen, onCloseMenu, onLogo
 
         <div className="flex items-center gap-3">
           <div className="hidden flex-col items-end md:flex">
-            <p
-              suppressHydrationWarning
-              className="text-sm font-bold tabular-nums text-stone-700"
-            >
-              {now.toLocaleTimeString("id-ID", {
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit",
-              })}
-              <span className="ml-1 font-medium text-stone-400">
-                WIB
-              </span>
+            <div className="flex items-center gap-1.5">
+              <span
+                className={`inline-block h-2 w-2 rounded-full ${
+                  isCustomWorkingDate ? "bg-amber-500 animate-pulse" : "bg-emerald-500"
+                }`}
+                title={isCustomWorkingDate ? "Mode Tanggal Manual" : "Mode Real-Time Otomatis"}
+              />
+              <p
+                suppressHydrationWarning
+                className="text-sm font-bold tabular-nums text-stone-700"
+              >
+                {now.toLocaleTimeString("id-ID", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                })}
+                <span className="ml-1 font-medium text-stone-400">
+                  WIB
+                </span>
+              </p>
+            </div>
+            <p suppressHydrationWarning className="flex items-center gap-1 text-xs text-stone-500">
+              <span>{dateLabel}</span>
+              {isCustomWorkingDate && (
+                <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-extrabold text-amber-800">
+                  Manual
+                </span>
+              )}
             </p>
-            <p suppressHydrationWarning className="text-xs text-stone-500">{dateLabel}</p>
           </div>
 
           {user && (

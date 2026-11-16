@@ -67,6 +67,7 @@ export function generateTransactionId(sequence: number, targetDate?: Date | stri
 export function workingDateObject(workingDate: string | undefined, now: Date = new Date()): Date {
   if (!workingDate) return now;
   const date = new Date(`${workingDate}T00:00:00`);
+  if (isNaN(date.getTime())) return now;
   date.setHours(
     now.getHours(),
     now.getMinutes(),
@@ -74,6 +75,16 @@ export function workingDateObject(workingDate: string | undefined, now: Date = n
     now.getMilliseconds()
   );
   return date;
+}
+
+export function getEffectiveWorkingDate(
+  settings: { workingDate?: string; useRealtimeDate?: boolean } | null | undefined,
+  now: Date = new Date()
+): Date {
+  if (!settings || settings.useRealtimeDate !== false || !settings.workingDate) {
+    return now;
+  }
+  return workingDateObject(settings.workingDate, now);
 }
 
 export function isWorkingDateString(value: string): value is string {

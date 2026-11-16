@@ -116,6 +116,7 @@ export interface StoreSettings {
   taxRate: number;
   receiptFooter: string;
   workingDate?: string;
+  useRealtimeDate?: boolean;
   discountPresets?: number[];
   theme?: ColorTheme;
 }
