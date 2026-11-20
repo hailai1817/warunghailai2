@@ -19,6 +19,7 @@ import { USER_ROLES } from "@/lib/types";
 import { useAuth } from "@/context/AuthContext";
 import { useStore } from "@/context/StoreContext";
 import BrandLogo from "@/components/brand/BrandLogo";
+import Avatar from "@/components/ui/Avatar";
 
 const ROLE_ICONS: Record<UserRole, typeof ShoppingBag> = {
   pelanggan: ShoppingBag,
@@ -196,9 +197,37 @@ export default function LoginView() {
               />
             </div>
             {isKasirSelected && (
-              <p className="mt-1 text-[11px] text-amber-700">
-                Kasir wajib menggunakan nama karyawan yang berstatus aktif di data Admin.
-              </p>
+              <div className="mt-2 space-y-1.5">
+                <p className="text-[11px] font-semibold text-amber-800">
+                  Pilih Staf Kasir Terdaftar (Aktif):
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {employees
+                    .filter((e) => e.active && e.name.toLowerCase() !== "hailai")
+                    .map((emp) => (
+                      <button
+                        key={emp.id}
+                        type="button"
+                        onClick={() => {
+                          setName(emp.name);
+                          setAuthError("");
+                          setErrors((prev) => ({ ...prev, name: "" }));
+                        }}
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold transition ${
+                          name.toLowerCase() === emp.name.toLowerCase()
+                            ? "border-[var(--color-terracotta)] bg-amber-100 text-[var(--color-terracotta)] shadow-sm"
+                            : "border-stone-200 bg-white text-stone-600 hover:border-amber-300"
+                        }`}
+                      >
+                        <Avatar src={emp.photo} name={emp.name} size="xs" />
+                        <span>{emp.name}</span>
+                        <span className="text-[10px] text-stone-400 font-normal">
+                          ({emp.position})
+                        </span>
+                      </button>
+                    ))}
+                </div>
+              </div>
             )}
             {errors.name && (
               <p className="mt-1 text-xs font-semibold text-red-600">{errors.name}</p>

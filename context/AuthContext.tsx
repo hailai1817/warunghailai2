@@ -42,6 +42,8 @@ function readStoredUser(): AuthUser | null {
           typeof parsed.loginAt === "string"
             ? parsed.loginAt
             : new Date().toISOString(),
+        photo: typeof parsed.photo === "string" ? parsed.photo : undefined,
+        employeeId: typeof parsed.employeeId === "string" ? parsed.employeeId : undefined,
       };
     }
     return null;
@@ -96,6 +98,7 @@ interface AuthContextValue {
     employees?: Employee[]
   ) => LoginResult;
   logout: () => void;
+  updateUser: (patch: Partial<AuthUser>) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -126,6 +129,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       let resolvedName = cleanName;
+      let matchedPhoto: string | undefined;
+      let matchedId: string | undefined;
 
       if (role === "admin") {
         if (cleanName.toLowerCase() !== "hailai" || password !== "admin123") {
@@ -134,7 +139,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             error: "Login Admin gagal! Nama pengguna atau password Admin salah.",
           };
         }
+        const adminEmp = employees.find(
+          (e) => e.name.trim().toLowerCase() === "hailai" || e.id === "E00"
+        );
         resolvedName = "Hailai";
+        matchedPhoto = adminEmp?.photo;
+        matchedId = adminEmp?.id ?? "E00";
       } else if (role === "kasir") {
         const matched = employees.find(
           (emp) => emp.name.trim().toLowerCase() === cleanName.toLowerCase()
@@ -152,12 +162,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           };
         }
         resolvedName = matched.name;
+        matchedPhoto = matched.photo;
+        matchedId = matched.id;
       }
 
       const nextUser: AuthUser = {
         name: resolvedName,
         role,
         loginAt: new Date().toISOString(),
+        photo: matchedPhoto,
+        employeeId: matchedId,
       };
       try {
         window.localStorage.setItem(STORAGE_KEYS.auth, JSON.stringify(nextUser));
@@ -170,6 +184,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     []
   );
+
+  const updateUser = useCallback((patch: Partial<AuthUser>) => {
+    const current = readStoredUser();
+    if (!current) return;
+    const nextUser: AuthUser = {
+      ...current,
+      ...patch,
+      name: patch.name !== undefined ? patch.name.trim() : current.name,
+    };
+    try {
+      window.localStorage.setItem(STORAGE_KEYS.auth, JSON.stringify(nextUser));
+    } catch {
+      // Ignore
+    }
+    cachedClientSnapshot = { ready: true, user: nextUser };
+    listeners.forEach((listener) => listener());
+  }, []);
 
   const logout = useCallback(() => {
     try {
@@ -187,8 +218,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authReady: snapshot.ready,
       login,
       logout,
+      updateUser,
     }),
-    [snapshot.user, snapshot.ready, login, logout]
+    [snapshot.user, snapshot.ready, login, logout, updateUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

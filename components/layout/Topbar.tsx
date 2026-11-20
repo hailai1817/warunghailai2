@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useStore } from "@/context/StoreContext";
 import { getEffectiveWorkingDate } from "@/lib/format";
 import BrandLogo from "@/components/brand/BrandLogo";
+import Avatar from "@/components/ui/Avatar";
 
 interface TopbarProps {
   view: ViewKey;
@@ -14,6 +15,7 @@ interface TopbarProps {
   menuOpen: boolean;
   onCloseMenu: () => void;
   onLogout: () => void;
+  onNavigate?: (view: ViewKey) => void;
 }
 
 const VIEW_TITLES: Record<ViewKey, { title: string; subtitle: string }> = {
@@ -24,6 +26,7 @@ const VIEW_TITLES: Record<ViewKey, { title: string; subtitle: string }> = {
   ulasan: { title: "Ulasan Pelanggan", subtitle: "Komentar, rating, dan masukan pelanggan" },
   karyawan: { title: "Manajemen Karyawan", subtitle: "Daftar karyawan yang bekerja saat ini dan registrasi kasir baru" },
   pengaturan: { title: "Pengaturan Toko", subtitle: "Konfigurasi profil dan data toko" },
+  profil: { title: "Profil Karyawan", subtitle: "Kelola informasi data pribadi dan foto profil Anda" },
 };
 
 const ROLE_BADGE_STYLE: Record<UserRole, string> = {
@@ -51,7 +54,14 @@ function subscribeToClock(callback: () => void) {
   return () => window.clearInterval(timer);
 }
 
-export default function Topbar({ view, onOpenMenu, menuOpen, onCloseMenu, onLogout }: TopbarProps) {
+export default function Topbar({
+  view,
+  onOpenMenu,
+  menuOpen,
+  onCloseMenu,
+  onLogout,
+  onNavigate,
+}: TopbarProps) {
   const now = useSyncExternalStore(subscribeToClock, getClockSnapshot, () => new Date());
   const { user } = useAuth();
   const { settings } = useStore();
@@ -130,17 +140,41 @@ export default function Topbar({ view, onOpenMenu, menuOpen, onCloseMenu, onLogo
           </div>
 
           {user && (
-            <div className="flex items-center gap-2 rounded-xl border border-stone-200 bg-white/90 py-1.5 pl-2.5 pr-1.5 shadow-sm">
-              <div className="hidden text-right sm:block">
-                <p className="max-w-[110px] truncate text-xs font-extrabold text-stone-800">
-                  {user.name}
-                </p>
-                <span
-                  className={`inline-block rounded-full border px-1.5 py-0 text-[9px] font-bold uppercase ${ROLE_BADGE_STYLE[user.role]}`}
+            <div className="flex items-center gap-2 rounded-xl border border-stone-200 bg-white/90 py-1.5 pl-2 pr-1.5 shadow-sm">
+              {user.role !== "pelanggan" && onNavigate ? (
+                <button
+                  type="button"
+                  onClick={() => onNavigate("profil")}
+                  title="Lihat & Kelola Profil Karyawan"
+                  className="group flex items-center gap-2 text-left transition"
                 >
-                  {ROLE_LABEL[user.role]}
-                </span>
-              </div>
+                  <Avatar src={user.photo} name={user.name} size="sm" />
+                  <div className="hidden text-left sm:block">
+                    <p className="max-w-[110px] truncate text-xs font-extrabold text-stone-800 transition group-hover:text-[var(--color-terracotta)]">
+                      {user.name}
+                    </p>
+                    <span
+                      className={`inline-block rounded-full border px-1.5 py-0 text-[9px] font-bold uppercase ${ROLE_BADGE_STYLE[user.role]}`}
+                    >
+                      {ROLE_LABEL[user.role]}
+                    </span>
+                  </div>
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Avatar src={user.photo} name={user.name} size="sm" />
+                  <div className="hidden text-right sm:block">
+                    <p className="max-w-[110px] truncate text-xs font-extrabold text-stone-800">
+                      {user.name}
+                    </p>
+                    <span
+                      className={`inline-block rounded-full border px-1.5 py-0 text-[9px] font-bold uppercase ${ROLE_BADGE_STYLE[user.role]}`}
+                    >
+                      {ROLE_LABEL[user.role]}
+                    </span>
+                  </div>
+                </div>
+              )}
               <span
                 className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase sm:hidden ${ROLE_BADGE_STYLE[user.role]}`}
               >

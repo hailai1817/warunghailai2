@@ -6,6 +6,8 @@ import {
   CheckCircle2,
   Clock,
   Info,
+  Mail,
+  MapPin,
   Pencil,
   Phone,
   Search,
@@ -22,6 +24,7 @@ import Badge from "@/components/ui/Badge";
 import StatCard from "@/components/ui/StatCard";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import EmptyState from "@/components/ui/EmptyState";
+import Avatar from "@/components/ui/Avatar";
 import EmployeeFormModal from "./EmployeeFormModal";
 
 type StatusFilter = "semua" | "aktif" | "nonaktif";
@@ -171,15 +174,12 @@ export default function EmployeesView() {
               <div>
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-3">
-                    <div
-                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-base font-extrabold text-white shadow ${
-                        emp.active
-                          ? "bg-gradient-to-br from-emerald-500 to-teal-600"
-                          : "bg-gradient-to-br from-stone-400 to-stone-500"
-                      }`}
-                    >
-                      {emp.name.charAt(0).toUpperCase()}
-                    </div>
+                    <Avatar
+                      src={emp.photo}
+                      name={emp.name}
+                      size="lg"
+                      className="shadow-sm"
+                    />
                     <div className="min-w-0">
                       <p className="truncate font-extrabold text-stone-800">{emp.name}</p>
                       <p className="flex items-center gap-1 text-xs font-semibold text-stone-500">
@@ -202,17 +202,29 @@ export default function EmployeesView() {
                   </span>
                 </div>
 
-                <div className="mt-3 space-y-1 border-t border-dashed border-stone-100 pt-3 text-xs text-stone-600">
+                <div className="mt-3 space-y-1.5 border-t border-dashed border-stone-100 pt-3 text-xs text-stone-600">
                   {emp.shift && (
                     <p className="flex items-center gap-1.5">
-                      <Clock className="h-3.5 w-3.5 text-stone-400" />
-                      {emp.shift}
+                      <Clock className="h-3.5 w-3.5 text-stone-400 shrink-0" />
+                      <span className="truncate">{emp.shift}</span>
                     </p>
                   )}
                   {emp.phone && (
                     <p className="flex items-center gap-1.5">
-                      <Phone className="h-3.5 w-3.5 text-stone-400" />
-                      {emp.phone}
+                      <Phone className="h-3.5 w-3.5 text-stone-400 shrink-0" />
+                      <span>{emp.phone}</span>
+                    </p>
+                  )}
+                  {emp.email && (
+                    <p className="flex items-center gap-1.5 truncate">
+                      <Mail className="h-3.5 w-3.5 text-stone-400 shrink-0" />
+                      <span className="truncate">{emp.email}</span>
+                    </p>
+                  )}
+                  {emp.address && (
+                    <p className="flex items-center gap-1.5 truncate">
+                      <MapPin className="h-3.5 w-3.5 text-stone-400 shrink-0" />
+                      <span className="truncate">{emp.address}</span>
                     </p>
                   )}
                 </div>

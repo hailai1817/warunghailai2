@@ -5,6 +5,7 @@ import type { UserRole, ViewKey } from "@/lib/types";
 import { useAuth } from "@/context/AuthContext";
 import { useStore } from "@/context/StoreContext";
 import BrandLogo from "@/components/brand/BrandLogo";
+import Avatar from "@/components/ui/Avatar";
 import NavList from "./NavList";
 
 const ROLE_LABEL: Record<UserRole, string> = {
@@ -50,17 +51,29 @@ export default function Sidebar({ view, onNavigate, onLogout }: SidebarProps) {
 
       <div className="border-t border-white/10 p-4 space-y-3">
         {user && (
-          <div className="flex items-center gap-2.5 rounded-xl bg-white/10 p-2.5">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-[var(--color-terracotta)] text-sm font-extrabold text-white shadow">
-              {user.name.charAt(0).toUpperCase()}
-            </div>
+          <div
+            onClick={() => user.role !== "pelanggan" && onNavigate("profil")}
+            role={user.role !== "pelanggan" ? "button" : undefined}
+            title={user.role !== "pelanggan" ? "Klik untuk melihat & mengedit profil" : undefined}
+            className={`flex items-center gap-2.5 rounded-xl bg-white/10 p-2.5 transition ${
+              user.role !== "pelanggan"
+                ? "cursor-pointer hover:bg-white/15 hover:ring-1 hover:ring-amber-300/40"
+                : ""
+            }`}
+          >
+            <Avatar src={user.photo} name={user.name} size="sm" />
             <div className="min-w-0 flex-1">
               <p className="truncate text-xs font-extrabold text-white">{user.name}</p>
-              <span
-                className={`mt-0.5 inline-block rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${ROLE_PILL[user.role]}`}
-              >
-                {ROLE_LABEL[user.role]}
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span
+                  className={`mt-0.5 inline-block rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${ROLE_PILL[user.role]}`}
+                >
+                  {ROLE_LABEL[user.role]}
+                </span>
+                {user.role !== "pelanggan" && (
+                  <span className="text-[10px] text-amber-200/60 font-medium">Profil →</span>
+                )}
+              </div>
             </div>
           </div>
         )}

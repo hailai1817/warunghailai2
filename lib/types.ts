@@ -72,6 +72,8 @@ export interface AuthUser {
   name: string;
   role: UserRole;
   loginAt: string;
+  photo?: string;
+  employeeId?: string;
 }
 
 export interface Employee {
@@ -80,6 +82,12 @@ export interface Employee {
   position: string;
   shift?: string;
   phone?: string;
+  email?: string;
+  address?: string;
+  birthDate?: string;
+  emergencyContact?: string;
+  bio?: string;
+  photo?: string;
   active: boolean;
   joinedAt: string;
 }
@@ -144,10 +152,11 @@ export type ViewKey =
   | "laporan"
   | "ulasan"
   | "karyawan"
-  | "pengaturan";
+  | "pengaturan"
+  | "profil";
 
 export const ROLE_ALLOWED_VIEWS: Record<UserRole, ViewKey[]> = {
   pelanggan: ["kasir", "riwayat", "ulasan"],
-  kasir: ["kasir", "stok", "laporan", "ulasan", "pengaturan"],
-  admin: ["kasir", "stok", "laporan", "ulasan", "karyawan", "pengaturan"],
+  kasir: ["kasir", "stok", "laporan", "ulasan", "pengaturan", "profil"],
+  admin: ["kasir", "stok", "laporan", "ulasan", "karyawan", "pengaturan", "profil"],
 };

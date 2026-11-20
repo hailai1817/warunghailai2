@@ -19,6 +19,8 @@ import ReportsView from "./reports/ReportsView";
 import ReviewsView from "./reviews/ReviewsView";
 import EmployeesView from "./employees/EmployeesView";
 import SettingsView from "./settings/SettingsView";
+import ProfileView from "./profile/ProfileView";
+import Avatar from "./ui/Avatar";
 
 function AppContent() {
   const { user, authReady, logout } = useAuth();
@@ -88,14 +90,22 @@ function AppContent() {
               <NavList view={activeView} onNavigate={navigate} variant="dark" />
             </div>
             <div className="border-t border-white/10 p-4 space-y-2.5">
-              <div className="flex items-center gap-2.5 rounded-xl bg-white/10 p-2.5">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-[var(--color-terracotta)] text-xs font-extrabold text-white">
-                  {user.name.charAt(0).toUpperCase()}
-                </div>
+              <div
+                onClick={() => {
+                  if (user.role !== "pelanggan") {
+                    navigate("profil");
+                  }
+                }}
+                role={user.role !== "pelanggan" ? "button" : undefined}
+                className={`flex items-center gap-2.5 rounded-xl bg-white/10 p-2.5 ${
+                  user.role !== "pelanggan" ? "cursor-pointer hover:bg-white/15" : ""
+                }`}
+              >
+                <Avatar src={user.photo} name={user.name} size="sm" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-extrabold text-white">{user.name}</p>
                   <p className="text-[10px] font-bold uppercase tracking-wide text-amber-200/80">
-                    {user.role}
+                    {user.role} {user.role !== "pelanggan" && "• Profil →"}
                   </p>
                 </div>
               </div>
@@ -118,6 +128,7 @@ function AppContent() {
           menuOpen={menuOpen}
           onCloseMenu={() => setMenuOpen(false)}
           onLogout={handleLogout}
+          onNavigate={navigate}
         />
         <main className="flex-1 pb-24 lg:pb-6">
           {activeView === "kasir" && <KasirView />}
@@ -129,6 +140,7 @@ function AppContent() {
           {activeView === "ulasan" && <ReviewsView />}
           {activeView === "karyawan" && user.role === "admin" && <EmployeesView />}
           {activeView === "pengaturan" && user.role !== "pelanggan" && <SettingsView />}
+          {activeView === "profil" && user.role !== "pelanggan" && <ProfileView />}
         </main>
       </div>
 

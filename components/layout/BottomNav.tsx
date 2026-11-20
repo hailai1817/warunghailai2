@@ -24,7 +24,9 @@ export default function BottomNav({ view, onNavigate }: BottomNavProps) {
             ? "grid grid-cols-3"
             : items.length === 6
               ? "grid grid-cols-6"
-              : "grid grid-cols-5"
+              : items.length === 7
+                ? "grid grid-cols-7"
+                : "grid grid-cols-5"
         }
       >
         {items.map((item) => {
@@ -34,7 +36,7 @@ export default function BottomNav({ view, onNavigate }: BottomNavProps) {
             <button
               key={item.key}
               onClick={() => onNavigate(item.key)}
-              className={`relative flex flex-col items-center gap-1 py-2.5 text-[11px] font-semibold transition ${
+              className={`relative flex flex-col items-center gap-1 py-2 text-[10px] font-semibold transition ${
                 active ? "text-[var(--color-terracotta)]" : "text-stone-400"
               }`}
             >

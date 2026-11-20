@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, History, Package, Settings, ShoppingBasket, Star, Users } from "lucide-react";
+import { BarChart3, History, Package, Settings, ShoppingBasket, Star, UserCheck, Users } from "lucide-react";
 import type { UserRole, ViewKey } from "@/lib/types";
 import { useAuth } from "@/context/AuthContext";
 import { useStore } from "@/context/StoreContext";
@@ -87,6 +87,13 @@ export function getNavItemsForRole(role?: UserRole): NavItemConfig[] {
       shortLabel: "Setting",
       description: role === "admin" ? "Full Admin Settings" : "Store Settings",
       icon: Settings,
+    },
+    {
+      key: "profil" as ViewKey,
+      label: "Profil Saya",
+      shortLabel: "Profil",
+      description: "Data Pribadi & Foto",
+      icon: UserCheck,
     },
   ];
 }

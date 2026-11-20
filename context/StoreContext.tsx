@@ -142,7 +142,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       ...loadedSettings,
       useRealtimeDate: loadedSettings.useRealtimeDate ?? true,
     });
-    setEmployees(loadFromStorage(STORAGE_KEYS.employees, INITIAL_EMPLOYEES));
+    const loadedEmployees = loadFromStorage(STORAGE_KEYS.employees, INITIAL_EMPLOYEES);
+    const initialEmpMap = new Map(INITIAL_EMPLOYEES.map((e) => [e.id, e]));
+    let mergedEmployees: Employee[] = loadedEmployees.map((e) => {
+      const seed = initialEmpMap.get(e.id);
+      return {
+        ...e,
+        photo: e.photo || seed?.photo,
+        email: e.email || seed?.email,
+        address: e.address || seed?.address,
+        birthDate: e.birthDate || seed?.birthDate,
+        emergencyContact: e.emergencyContact || seed?.emergencyContact,
+        bio: e.bio || seed?.bio,
+      };
+    });
+    // Ensure Admin (Hailai) exists
+    if (!mergedEmployees.some((e) => e.name.toLowerCase() === "hailai")) {
+      const adminSeed = INITIAL_EMPLOYEES.find((e) => e.name.toLowerCase() === "hailai");
+      if (adminSeed) {
+        mergedEmployees = [adminSeed, ...mergedEmployees];
+      }
+    }
+    setEmployees(mergedEmployees);
 
     // Merge default avatar pictures for reviews that don't have one yet
     const loadedReviews = loadFromStorage(STORAGE_KEYS.reviews, INITIAL_REVIEWS);

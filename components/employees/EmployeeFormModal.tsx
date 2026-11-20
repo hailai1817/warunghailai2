@@ -1,11 +1,20 @@
 "use client";
 
-import { useState } from "react";
-import type { FormEvent } from "react";
-import { Check, Save, UserPlus } from "lucide-react";
+import { useRef, useState } from "react";
+import type { ChangeEvent, FormEvent } from "react";
+import {
+  Camera,
+  Check,
+  Save,
+  Trash2,
+  Upload,
+  UserPlus,
+} from "lucide-react";
 import type { Employee } from "@/lib/types";
 import type { EmployeeMutationResult } from "@/context/StoreContext";
 import Modal from "@/components/ui/Modal";
+import Avatar from "@/components/ui/Avatar";
+import { fileToDataUrl, resizeImage, validateImageFile } from "@/lib/image-upload";
 
 interface EmployeeFormModalProps {
   employee?: Employee | null;
@@ -13,11 +22,19 @@ interface EmployeeFormModalProps {
   onSave: (data: Omit<Employee, "id" | "joinedAt">) => EmployeeMutationResult;
 }
 
-const POSITION_PRESETS = ["Kasir", "Kasir Utama", "Kasir & Barista", "Staff Bakery"];
+const POSITION_PRESETS = [
+  "Kasir",
+  "Kasir Utama",
+  "Kasir & Barista",
+  "Staff Bakery",
+  "Pemilik & Administrator",
+];
+
 const SHIFT_PRESETS = [
   "Pagi (07:00 - 15:00)",
   "Sore (14:00 - 22:00)",
   "Full Time (08:00 - 17:00)",
+  "Full Time (Owner)",
 ];
 
 export default function EmployeeFormModal({
@@ -29,8 +46,45 @@ export default function EmployeeFormModal({
   const [position, setPosition] = useState(employee?.position ?? "Kasir");
   const [shift, setShift] = useState(employee?.shift ?? SHIFT_PRESETS[0]);
   const [phone, setPhone] = useState(employee?.phone ?? "");
+  const [email, setEmail] = useState(employee?.email ?? "");
+  const [address, setAddress] = useState(employee?.address ?? "");
+  const [birthDate, setBirthDate] = useState(employee?.birthDate ?? "");
+  const [emergencyContact, setEmergencyContact] = useState(
+    employee?.emergencyContact ?? ""
+  );
+  const [bio, setBio] = useState(employee?.bio ?? "");
+  const [photo, setPhoto] = useState<string | undefined>(employee?.photo);
   const [active, setActive] = useState(employee?.active ?? true);
+
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [uploadError, setUploadError] = useState("");
+  const [isProcessingImg, setIsProcessingImg] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validationErr = validateImageFile(file);
+    if (validationErr) {
+      setUploadError(validationErr);
+      return;
+    }
+
+    setUploadError("");
+    setIsProcessingImg(true);
+
+    try {
+      const rawData = await fileToDataUrl(file);
+      const optimized = await resizeImage(rawData, 360, 0.78);
+      setPhoto(optimized);
+    } catch {
+      setUploadError("Gagal memproses gambar. Coba gambar lain.");
+    } finally {
+      setIsProcessingImg(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -48,6 +102,12 @@ export default function EmployeeFormModal({
       position: position.trim(),
       shift: shift.trim() || undefined,
       phone: phone.trim() || undefined,
+      email: email.trim() || undefined,
+      address: address.trim() || undefined,
+      birthDate: birthDate.trim() || undefined,
+      emergencyContact: emergencyContact.trim() || undefined,
+      bio: bio.trim() || undefined,
+      photo: photo || undefined,
       active,
     });
 
@@ -70,15 +130,74 @@ export default function EmployeeFormModal({
       title={employee ? "Edit Data Karyawan" : "Daftarkan Karyawan Baru"}
       subtitle={
         employee
-          ? `Perbarui data dan status kerja ${employee.name}`
+          ? `Perbarui profil, foto, dan status kerja ${employee.name}`
           : "Karyawan aktif terdaftar otomatis bisa login menggunakan role Kasir"
       }
-      maxWidth="max-w-lg"
+      maxWidth="max-w-xl"
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="max-h-[82vh] space-y-4 overflow-y-auto p-1 pr-2">
+        {/* Photo Upload Section */}
+        <div className="flex flex-col items-center gap-4 rounded-2xl border border-amber-200/80 bg-amber-50/50 p-4 sm:flex-row">
+          <div className="relative shrink-0">
+            <Avatar
+              src={photo}
+              name={name || "Karyawan"}
+              size="xl"
+              bordered
+              className="shadow-sm"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              title="Unggah Foto"
+              className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-terracotta)] text-white shadow"
+            >
+              <Camera className="h-3.5 w-3.5" />
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+          </div>
+
+          <div className="flex-1 space-y-1.5 text-center sm:text-left">
+            <p className="text-xs font-bold text-stone-700">Foto Profil Karyawan</p>
+            <p className="text-[11px] text-stone-500">
+              Format JPG, PNG, atau WebP (maksimal 5MB). Foto akan dioptimalkan otomatis.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-1 sm:justify-start">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isProcessingImg}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-bold text-amber-900 shadow-sm transition hover:bg-amber-50 disabled:opacity-50"
+              >
+                <Upload className="h-3.5 w-3.5 text-amber-600" />
+                {isProcessingImg ? "Memproses..." : photo ? "Ganti Foto" : "Unggah Foto"}
+              </button>
+              {photo && (
+                <button
+                  type="button"
+                  onClick={() => setPhoto("")}
+                  className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-white px-2.5 py-1.5 text-xs font-bold text-red-600 transition hover:bg-red-50"
+                >
+                  <Trash2 className="h-3 w-3" />
+                  Hapus
+                </button>
+              )}
+            </div>
+            {uploadError && (
+              <p className="text-xs font-semibold text-red-600">{uploadError}</p>
+            )}
+          </div>
+        </div>
+
         <div>
           <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-stone-500">
-            Nama Karyawan
+            Nama Karyawan <span className="text-red-500">*</span>
           </label>
           <input
             value={name}
@@ -96,7 +215,7 @@ export default function EmployeeFormModal({
 
         <div>
           <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-stone-500">
-            Jabatan / Posisi
+            Jabatan / Posisi <span className="text-red-500">*</span>
           </label>
           <input
             value={position}
@@ -131,10 +250,10 @@ export default function EmployeeFormModal({
           )}
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-stone-500">
-              Shift Kerja (opsional)
+              Shift Kerja
             </label>
             <input
               value={shift}
@@ -143,9 +262,10 @@ export default function EmployeeFormModal({
               className={inputClass()}
             />
           </div>
+
           <div>
             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-stone-500">
-              No. HP / WhatsApp (opsional)
+              No. HP / WhatsApp
             </label>
             <input
               value={phone}
@@ -154,23 +274,68 @@ export default function EmployeeFormModal({
               className={inputClass()}
             />
           </div>
-        </div>
 
-        <div className="flex flex-wrap gap-1.5">
-          {SHIFT_PRESETS.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setShift(s)}
-              className={`rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition ${
-                shift === s
-                  ? "border-amber-300 bg-amber-50 text-amber-800"
-                  : "border-stone-200 bg-white text-stone-500 hover:bg-stone-50"
-              }`}
-            >
-              {s}
-            </button>
-          ))}
+          <div>
+            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-stone-500">
+              Email
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="cth: nama@gmail.com"
+              className={inputClass()}
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-stone-500">
+              Tanggal Lahir
+            </label>
+            <input
+              type="date"
+              value={birthDate}
+              onChange={(e) => setBirthDate(e.target.value)}
+              className={inputClass()}
+            />
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-stone-500">
+              Alamat Lengkap
+            </label>
+            <input
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="cth: Jl. Cihampelas No. 42, Bandung"
+              className={inputClass()}
+            />
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-stone-500">
+              Kontak Darurat
+            </label>
+            <input
+              value={emergencyContact}
+              onChange={(e) => setEmergencyContact(e.target.value)}
+              placeholder="cth: Budi Kusuma (Ayah) - 0812-9988-7766"
+              className={inputClass()}
+            />
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-stone-500">
+              Bio / Catatan Pribadi
+            </label>
+            <textarea
+              rows={2}
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              placeholder="Catatan keahlian, prestasi, atau informasi staf..."
+              className={inputClass()}
+            />
+          </div>
         </div>
 
         <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-stone-200 bg-stone-50 p-3.5 transition hover:border-amber-300">
@@ -199,7 +364,7 @@ export default function EmployeeFormModal({
           </div>
         </label>
 
-        <div className="flex justify-end gap-2 pt-2">
+        <div className="flex justify-end gap-2 border-t border-stone-100 pt-3">
           <button
             type="button"
             onClick={onClose}
