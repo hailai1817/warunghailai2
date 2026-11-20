@@ -157,6 +157,6 @@ export type ViewKey =
 
 export const ROLE_ALLOWED_VIEWS: Record<UserRole, ViewKey[]> = {
   pelanggan: ["kasir", "riwayat", "ulasan"],
-  kasir: ["kasir", "stok", "laporan", "ulasan", "pengaturan", "profil"],
+  kasir: ["kasir", "stok", "laporan", "ulasan", "karyawan", "pengaturan", "profil"],
   admin: ["kasir", "stok", "laporan", "ulasan", "karyawan", "pengaturan", "profil"],
 };

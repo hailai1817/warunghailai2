@@ -138,7 +138,7 @@ function AppContent() {
           {activeView === "stok" && user.role !== "pelanggan" && <InventoryView />}
           {activeView === "laporan" && user.role !== "pelanggan" && <ReportsView />}
           {activeView === "ulasan" && <ReviewsView />}
-          {activeView === "karyawan" && user.role === "admin" && <EmployeesView />}
+          {activeView === "karyawan" && user.role !== "pelanggan" && <EmployeesView />}
           {activeView === "pengaturan" && user.role !== "pelanggan" && <SettingsView />}
           {activeView === "profil" && user.role !== "pelanggan" && <ProfileView />}
         </main>

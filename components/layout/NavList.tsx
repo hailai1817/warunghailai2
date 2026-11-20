@@ -70,17 +70,13 @@ export function getNavItemsForRole(role?: UserRole): NavItemConfig[] {
         role === "admin" ? "Balas & Kelola Ulasan" : "Lihat Komentar & Rating",
       icon: Star,
     },
-    ...(role === "admin"
-      ? [
-          {
-            key: "karyawan" as ViewKey,
-            label: "Data Karyawan",
-            shortLabel: "Karyawan",
-            description: "Karyawan Aktif & Registrasi",
-            icon: Users,
-          },
-        ]
-      : []),
+    {
+      key: "karyawan" as ViewKey,
+      label: "Data Karyawan",
+      shortLabel: "Karyawan",
+      description: role === "admin" ? "Profil Staf & Registrasi" : "Direktori Profil Karyawan",
+      icon: Users,
+    },
     {
       key: "pengaturan",
       label: "Pengaturan",
