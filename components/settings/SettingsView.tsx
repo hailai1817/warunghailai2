@@ -10,12 +10,15 @@ import {
   Cloud,
   Database,
   Download,
+  ExternalLink,
   Info,
+  Key,
   Palette,
   RotateCcw,
   Save,
   Store,
   Trash2,
+  UploadCloud,
   Wifi,
   Zap,
 } from "lucide-react";
@@ -25,9 +28,20 @@ import type { ColorTheme, StoreSettings } from "@/lib/types";
 import { DEFAULT_SETTINGS } from "@/lib/mock-data";
 import { BAKERY_THEME, THEME_PRESETS } from "@/lib/color";
 import { downloadFile } from "@/lib/format";
-import { hasFirebaseConfig } from "@/lib/firebase";
-import { cloudTestConnection, type CloudConnectionStatus } from "@/lib/firestore-service";
+import {
+  clearFirebaseConfigFromStorage,
+  getFirebaseConfig,
+  hasFirebaseConfig,
+  saveFirebaseConfigToStorage,
+  type FirebaseConfigObject,
+} from "@/lib/firebase";
+import {
+  cloudTestConnection,
+  pushAllDataToCloud,
+  type CloudConnectionStatus,
+} from "@/lib/firestore-service";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import Modal from "@/components/ui/Modal";
 
 export default function SettingsView() {
   const { user } = useAuth();
@@ -46,7 +60,6 @@ export default function SettingsView() {
   }
 
   const theme = settings.theme ?? DEFAULT_SETTINGS.theme ?? BAKERY_THEME;
-  const cloudEnabled = hasFirebaseConfig();
   const [cloudStatus, setCloudStatus] = useState<CloudConnectionStatus | null>(null);
   const [checkingCloud, setCheckingCloud] = useState(false);
   const [presetStr, setPresetStr] = useState(
@@ -100,6 +113,93 @@ export default function SettingsView() {
         ? "Pengaturan disimpan. Tanggal kerja otomatis real-time aktif."
         : "Pengaturan disimpan. Tanggal kerja kustom manual aktif."
     );
+  };
+
+  const [configModalOpen, setConfigModalOpen] = useState(false);
+  const [firebaseForm, setFirebaseForm] = useState<FirebaseConfigObject>(() => getFirebaseConfig());
+  const [pasteSnippet, setPasteSnippet] = useState("");
+  const [isPushingCloud, setIsPushingCloud] = useState(false);
+
+  const openConfigModal = () => {
+    setFirebaseForm(getFirebaseConfig());
+    setConfigModalOpen(true);
+  };
+
+  const handleParseSnippet = () => {
+    if (!pasteSnippet.trim()) return;
+    const extract = (key: string) => {
+      const match = pasteSnippet.match(new RegExp(`${key}["']?\\s*:\\s*["']([^"']+)["']`));
+      return match ? match[1].trim() : "";
+    };
+    const apiKey = extract("apiKey");
+    const authDomain = extract("authDomain");
+    const projectId = extract("projectId");
+    const storageBucket = extract("storageBucket");
+    const messagingSenderId = extract("messagingSenderId");
+    const appId = extract("appId");
+
+    if (apiKey || projectId || appId) {
+      setFirebaseForm((prev) => ({
+        ...prev,
+        apiKey: apiKey || prev.apiKey,
+        authDomain: authDomain || prev.authDomain,
+        projectId: projectId || prev.projectId,
+        storageBucket: storageBucket || prev.storageBucket,
+        messagingSenderId: messagingSenderId || prev.messagingSenderId,
+        appId: appId || prev.appId,
+      }));
+      showToast("Konfigurasi Firebase berhasil diekstrak!");
+    } else {
+      showToast("Gagal membaca format firebaseConfig. Tempel ulang atau isi kolom di bawah.");
+    }
+  };
+
+  const handleSaveFirebaseConfig = () => {
+    if (!firebaseForm.apiKey || !firebaseForm.projectId || !firebaseForm.appId) {
+      showToast("Harap isi setidaknya API Key, Project ID, dan App ID.");
+      return;
+    }
+    saveFirebaseConfigToStorage(firebaseForm);
+    setConfigModalOpen(false);
+    showToast("Konfigurasi Firebase berhasil disimpan.");
+  };
+
+  const handleClearFirebaseConfig = () => {
+    clearFirebaseConfigFromStorage();
+    setFirebaseForm({
+      apiKey: "",
+      authDomain: "",
+      projectId: "",
+      storageBucket: "",
+      messagingSenderId: "",
+      appId: "",
+    });
+    setPasteSnippet("");
+    setConfigModalOpen(false);
+    showToast("Konfigurasi Firebase lokal telah dihapus.");
+  };
+
+  const handlePushToCloud = async () => {
+    if (!hasFirebaseConfig()) {
+      showToast("Firebase belum dikonfigurasi. Atur konfigurasi Firebase terlebih dahulu.");
+      openConfigModal();
+      return;
+    }
+    setIsPushingCloud(true);
+    const res = await pushAllDataToCloud({
+      products,
+      transactions,
+      settings,
+      reviews,
+      employees,
+    });
+    setIsPushingCloud(false);
+    showToast(res.message);
+    setCloudStatus({
+      configured: true,
+      connected: res.ok,
+      message: res.message,
+    });
   };
 
   const handleTestCloud = async () => {
@@ -455,50 +555,84 @@ export default function SettingsView() {
       </div>
 
       <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm sm:p-6">
-        <div className="mb-5 flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-sky-700 text-white shadow">
-            <Cloud className="h-5 w-5" />
+        <div className="mb-5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-sky-700 text-white shadow">
+              <Cloud className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-extrabold text-stone-800">Penyimpanan Cloud Firestore</h2>
+              <p className="text-xs text-stone-500">
+                Sinkronisasi produk, transaksi, karyawan, dan ulasan ke Firebase Firestore
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-base font-extrabold text-stone-800">Penyimpanan Data</h2>
-            <p className="text-xs text-stone-500">
-              Simpan data di Firebase Firestore secara request/response
-            </p>
-          </div>
+
+          <button
+            onClick={openConfigModal}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-xs font-bold text-stone-700 shadow-sm transition hover:border-amber-300 hover:bg-amber-50"
+          >
+            <Key className="h-3.5 w-3.5 text-amber-600" />
+            Konfigurasi Firebase
+          </button>
         </div>
 
-        {cloudEnabled ? (
-          <div className="mb-3 flex items-center gap-2 text-sm font-bold text-emerald-700">
-            <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
-            Mode Cloud aktif
-            <span className="font-normal text-stone-400">(Firestore + cache lokal)</span>
+        {hasFirebaseConfig() ? (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-xs text-emerald-900">
+            <div className="flex items-center gap-2 font-bold">
+              <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Firebase Terkonfigurasi</span>
+              <span className="font-mono text-[11px] text-emerald-700 font-normal">
+                (Project: {getFirebaseConfig().projectId || "aktif"})
+              </span>
+            </div>
+            <span className="rounded bg-emerald-200/60 px-2 py-0.5 text-[10px] font-extrabold text-emerald-800">
+              Cloud + Cache Lokal
+            </span>
           </div>
         ) : (
-          <div className="mb-3 flex items-center gap-2 text-sm font-bold text-amber-700">
-            <span className="flex h-2.5 w-2.5 rounded-full bg-amber-500" />
-            Mode Lokal aktif
-            <span className="font-normal text-stone-400">(Firebase belum dikonfigurasi)</span>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-xs text-amber-900">
+            <div className="flex items-center gap-2 font-bold">
+              <span className="flex h-2.5 w-2.5 rounded-full bg-amber-500" />
+              <span>Mode Lokal Aktif (Firebase Belum Terhubung)</span>
+            </div>
+            <button
+              onClick={openConfigModal}
+              className="font-extrabold text-[var(--color-terracotta)] underline hover:text-amber-800"
+            >
+              Hubungkan Sekarang →
+            </button>
           </div>
         )}
 
         <p className="mb-4 text-xs leading-relaxed text-stone-500">
-          Data (produk, transaksi, review, pengaturan) otomatis disimpan ke Firestore sebagai
-          sumber data utama, dengan cache localStorage sebagai cadangan saat offline. Selama
-          Firebase tidak dikonfigurasi, aplikasi tetap berjalan penuh dengan penyimpanan lokal.
+          Data (produk, transaksi, karyawan, ulasan, pengaturan) otomatis disimpan ke Firestore secara berkala.
+          Anda juga dapat menekan tombol <strong>Push Semua Data ke Firestore Sekarang</strong> di bawah untuk langsung mengunggah seluruh data web saat ini ke cloud database.
         </p>
 
-        <button
-          onClick={handleTestCloud}
-          disabled={checkingCloud}
-          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-sky-500 to-sky-700 px-4 py-2 text-xs font-extrabold text-white shadow transition hover:opacity-90"
-        >
-          <Wifi className="h-4 w-4" />
-          {checkingCloud ? "Menghubungkan..." : "Uji Koneksi Firebase"}
-        </button>
+        <div className="flex flex-wrap gap-2.5">
+          <button
+            onClick={handlePushToCloud}
+            disabled={isPushingCloud || checkingCloud}
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 px-4 py-2.5 text-xs font-extrabold text-white shadow-md shadow-emerald-200 transition hover:opacity-90 disabled:opacity-50"
+          >
+            <UploadCloud className="h-4 w-4" />
+            {isPushingCloud ? "Mengunggah Data ke Cloud..." : "Push Semua Data ke Firestore Sekarang"}
+          </button>
+
+          <button
+            onClick={handleTestCloud}
+            disabled={checkingCloud || isPushingCloud}
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-sky-500 to-sky-700 px-4 py-2.5 text-xs font-extrabold text-white shadow transition hover:opacity-90 disabled:opacity-50"
+          >
+            <Wifi className="h-4 w-4" />
+            {checkingCloud ? "Menghubungkan..." : "Uji Koneksi Firebase"}
+          </button>
+        </div>
 
         {cloudStatus && (
           <p
-            className={`mt-3 rounded-xl border px-3 py-2 text-xs font-semibold ${
+            className={`mt-3.5 rounded-xl border px-3.5 py-2.5 text-xs font-semibold ${
               cloudStatus.connected
                 ? "border-emerald-200 bg-emerald-50 text-emerald-800"
                 : "border-amber-200 bg-amber-50 text-amber-800"
@@ -507,12 +641,6 @@ export default function SettingsView() {
             {cloudStatus.message}
           </p>
         )}
-
-        <ol className="mt-4 list-inside list-decimal space-y-1 text-xs text-stone-500">
-          <li>Cantumkan konfigurasi Firebase di file <code className="rounded bg-stone-100 px-1">.env.local</code> (sudah tersedia template placeholder).</li>
-          <li>Deploy aturan <code className="rounded bg-stone-100 px-1">firestore.rules</code>: <code className="rounded bg-stone-100 px-1">firebase deploy --only firestore</code>.</li>
-          <li>Jalankan ulang <code className="rounded bg-stone-100 px-1">npm run build</code> lalu buka aplikasi.</li>
-        </ol>
       </div>
 
       <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm sm:p-6">
@@ -607,6 +735,169 @@ export default function SettingsView() {
           showToast("Data berhasil direset ke kondisi awal.");
         }}
       />
+
+      <Modal
+        open={configModalOpen}
+        onClose={() => setConfigModalOpen(false)}
+        title="Konfigurasi Firebase Firestore"
+        subtitle="Hubungkan aplikasi HaiLai POS dengan Cloud Firestore untuk sinkronisasi database"
+        maxWidth="max-w-xl"
+      >
+        <div className="space-y-5 p-5 sm:p-6">
+          {/* Quick Setup / Paste Snippet */}
+          <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <span className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
+                <Zap className="h-4 w-4 text-amber-600" />
+                Cara Cepat: Tempel Snippet firebaseConfig
+              </span>
+              <a
+                href="https://console.firebase.google.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-[var(--color-terracotta)] hover:underline"
+              >
+                Firebase Console <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+            <p className="mb-2.5 text-[11px] leading-relaxed text-amber-800/90">
+              Salin kode objek <code className="rounded bg-amber-100 px-1 font-mono">const firebaseConfig = &#123; ... &#125;</code> dari Firebase Console (Project Settings &gt; General &gt; Your apps), lalu tempelkan di sini:
+            </p>
+            <textarea
+              rows={3}
+              value={pasteSnippet}
+              onChange={(e) => setPasteSnippet(e.target.value)}
+              placeholder={'const firebaseConfig = {\n  apiKey: "AIza...",\n  projectId: "warung-hailai",\n  appId: "1:..."\n};'}
+              className="w-full rounded-xl border border-amber-300 bg-white p-2.5 font-mono text-xs text-stone-800 placeholder-stone-400 outline-none focus:border-[var(--color-terracotta)]"
+            />
+            <div className="mt-2.5 flex justify-end">
+              <button
+                type="button"
+                onClick={handleParseSnippet}
+                disabled={!pasteSnippet.trim()}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-amber-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-amber-700 disabled:opacity-50"
+              >
+                <Check className="h-3.5 w-3.5" />
+                Ekstrak &amp; Terapkan
+              </button>
+            </div>
+          </div>
+
+          {/* Form Fields */}
+          <div className="space-y-3">
+            <div className="text-xs font-bold uppercase tracking-wide text-stone-500">
+              Rincian Kredensial Firebase
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <label className="mb-1 block text-xs font-bold text-stone-700">
+                  API Key <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={firebaseForm.apiKey}
+                  onChange={(e) => setFirebaseForm((p) => ({ ...p, apiKey: e.target.value }))}
+                  placeholder="AIzaSy..."
+                  className={inputClass}
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-bold text-stone-700">
+                  Project ID <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={firebaseForm.projectId}
+                  onChange={(e) => setFirebaseForm((p) => ({ ...p, projectId: e.target.value }))}
+                  placeholder="warung-hailai-pos"
+                  className={inputClass}
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-bold text-stone-700">
+                  App ID <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={firebaseForm.appId}
+                  onChange={(e) => setFirebaseForm((p) => ({ ...p, appId: e.target.value }))}
+                  placeholder="1:123456789:web:abcdef..."
+                  className={inputClass}
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-bold text-stone-700">
+                  Auth Domain
+                </label>
+                <input
+                  type="text"
+                  value={firebaseForm.authDomain}
+                  onChange={(e) => setFirebaseForm((p) => ({ ...p, authDomain: e.target.value }))}
+                  placeholder="project-id.firebaseapp.com"
+                  className={inputClass}
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-bold text-stone-700">
+                  Storage Bucket
+                </label>
+                <input
+                  type="text"
+                  value={firebaseForm.storageBucket}
+                  onChange={(e) => setFirebaseForm((p) => ({ ...p, storageBucket: e.target.value }))}
+                  placeholder="project-id.appspot.com"
+                  className={inputClass}
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="mb-1 block text-xs font-bold text-stone-700">
+                  Messaging Sender ID
+                </label>
+                <input
+                  type="text"
+                  value={firebaseForm.messagingSenderId}
+                  onChange={(e) => setFirebaseForm((p) => ({ ...p, messagingSenderId: e.target.value }))}
+                  placeholder="123456789012"
+                  className={inputClass}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-stone-200 pt-3">
+            <button
+              type="button"
+              onClick={handleClearFirebaseConfig}
+              className="px-2 py-1.5 text-xs font-bold text-red-600 transition hover:text-red-700 hover:underline"
+            >
+              Hapus Konfigurasi
+            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setConfigModalOpen(false)}
+                className="rounded-xl border border-stone-200 bg-white px-4 py-2 text-xs font-bold text-stone-600 transition hover:bg-stone-50"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveFirebaseConfig}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[var(--color-terracotta)] to-amber-600 px-5 py-2 text-xs font-bold text-white shadow-md transition hover:opacity-90"
+              >
+                <Save className="h-3.5 w-3.5" />
+                Simpan &amp; Hubungkan
+              </button>
+            </div>
+          </div>
+        </div>
+      </Modal>
 
       {toast && (
         <div className="fixed bottom-20 left-1/2 z-[70] -translate-x-1/2 lg:bottom-6">

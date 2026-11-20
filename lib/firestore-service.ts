@@ -119,6 +119,46 @@ export async function cloudSave(
   }
 }
 
+export async function pushAllDataToCloud(data: {
+  products: Product[];
+  transactions: Transaction[];
+  settings: StoreSettings;
+  reviews: CustomerReview[];
+  employees: Employee[];
+}): Promise<{ ok: boolean; message: string }> {
+  const db = getDb();
+  if (!db) {
+    return {
+      ok: false,
+      message: "Firebase belum dikonfigurasi. Harap lengkapi konfigurasi Firebase terlebih dahulu.",
+    };
+  }
+  try {
+    const pSettings = await cloudSave("settings", data.settings);
+    const pProducts = await cloudSave("products", data.products);
+    const pTx = await cloudSave("transactions", data.transactions);
+    const pReviews = await cloudSave("reviews", data.reviews);
+    const pEmployees = await cloudSave("employees", data.employees);
+
+    if (pSettings && pProducts && pTx && pReviews && pEmployees) {
+      return {
+        ok: true,
+        message: `Berhasil mem-push seluruh data ke Cloud Firestore (${data.products.length} produk, ${data.transactions.length} transaksi, ${data.employees.length} karyawan, ${data.reviews.length} ulasan)!`,
+      };
+    }
+    return {
+      ok: false,
+      message:
+        "Sebagian data gagal di-push ke Firestore. Periksa aturan (firestore.rules) dan jaringan internet Anda.",
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      message: `Gagal push ke Firestore: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+}
+
 export interface CloudConnectionStatus {
   configured: boolean;
   connected: boolean;
@@ -130,7 +170,7 @@ export async function cloudTestConnection(): Promise<CloudConnectionStatus> {
     return {
       configured: false,
       connected: false,
-      message: "Firebase belum dikonfigurasi. Isi .env.local lalu build ulang.",
+      message: "Firebase belum dikonfigurasi. Atur melalui menu Konfigurasi Firebase atau isi .env.local.",
     };
   }
   const data = await cloudLoadAll();
