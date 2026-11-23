@@ -9,9 +9,9 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { getDb, hasFirebaseConfig } from "./firebase";
-import type { CustomerReview, Employee, Product, StoreSettings, Transaction } from "./types";
+import type { CustomerReview, Employee, Product, ProductAuditLog, StoreSettings, Transaction } from "./types";
 
-export type CloudCollectionKey = "products" | "transactions" | "reviews" | "employees";
+export type CloudCollectionKey = "products" | "transactions" | "reviews" | "employees" | "productLogs";
 
 export interface CloudData {
   products?: Product[];
@@ -19,6 +19,7 @@ export interface CloudData {
   settings?: StoreSettings | null;
   reviews?: CustomerReview[];
   employees?: Employee[];
+  productLogs?: ProductAuditLog[];
 }
 
 const SETTINGS_DOC = "store";
@@ -34,13 +35,14 @@ export async function cloudLoadAll(): Promise<CloudData | null> {
   const db = getDb();
   if (!db) return null;
   try {
-    const [productsSnap, transactionsSnap, settingsSnap, reviewsSnap, employeesSnap] =
+    const [productsSnap, transactionsSnap, settingsSnap, reviewsSnap, employeesSnap, productLogsSnap] =
       await Promise.all([
         getDocs(collection(db, "products")),
         getDocs(collection(db, "transactions")),
         getDoc(doc(db, "settings", SETTINGS_DOC)),
         getDocs(collection(db, "reviews")),
         getDocs(collection(db, "employees")),
+        getDocs(collection(db, "productLogs")),
       ]);
     return {
       products: productsSnap.docs.map((d) => d.data() as Product),
@@ -48,6 +50,7 @@ export async function cloudLoadAll(): Promise<CloudData | null> {
       settings: settingsSnap.exists() ? (settingsSnap.data() as StoreSettings) : null,
       reviews: reviewsSnap.docs.map((d) => d.data() as CustomerReview),
       employees: employeesSnap.docs.map((d) => d.data() as Employee),
+      productLogs: productLogsSnap.docs.map((d) => d.data() as ProductAuditLog),
     };
   } catch {
     // Unreachable network or unsupported rules -> caller falls back to local
@@ -62,11 +65,11 @@ export async function cloudSave(
 ): Promise<boolean>;
 export async function cloudSave(
   key: CloudCollectionKey,
-  payload: Array<Product | Transaction | CustomerReview | Employee>
+  payload: Array<Product | Transaction | CustomerReview | Employee | ProductAuditLog>
 ): Promise<boolean>;
 export async function cloudSave(
   key: CloudCollectionKey | "settings",
-  payload: StoreSettings | Array<Product | Transaction | CustomerReview | Employee>
+  payload: StoreSettings | Array<Product | Transaction | CustomerReview | Employee | ProductAuditLog>
 ): Promise<boolean> {
   const db = getDb();
   if (!db) return false;

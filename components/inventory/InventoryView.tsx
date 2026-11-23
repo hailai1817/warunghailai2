@@ -9,6 +9,7 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  History,
   Package,
   PackagePlus,
   Pencil,
@@ -19,6 +20,7 @@ import {
 } from "lucide-react";
 import type { Category, Product } from "@/lib/types";
 import { CATEGORIES } from "@/lib/types";
+import { useAuth } from "@/context/AuthContext";
 import { useStore } from "@/context/StoreContext";
 import { formatRupiah } from "@/lib/format";
 import { getStockStatus, getTotalStock, LOW_STOCK_THRESHOLD } from "@/lib/stock";
@@ -28,6 +30,7 @@ import StatCard from "@/components/ui/StatCard";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import EmptyState from "@/components/ui/EmptyState";
 import ProductFormModal from "./ProductFormModal";
+import StockAuditLogView from "./StockAuditLogView";
 
 type CategoryFilter = "Semua" | Category;
 
@@ -77,8 +80,38 @@ function getPageNumbers(current: number, total: number): number[] {
   return pages;
 }
 
+function describeProductChanges(oldP: Product, newP: Omit<Product, "id">): string {
+  const changes: string[] = [];
+  if (oldP.name !== newP.name) {
+    changes.push(`Nama: "${oldP.name}" → "${newP.name}"`);
+  }
+  if (oldP.category !== newP.category) {
+    changes.push(`Kategori: ${oldP.category} → ${newP.category}`);
+  }
+  if (oldP.price !== newP.price) {
+    changes.push(`Harga: ${formatRupiah(oldP.price)} → ${formatRupiah(newP.price)}`);
+  }
+  if (oldP.stock !== newP.stock) {
+    changes.push(`Stok: ${oldP.stock} pcs → ${newP.stock} pcs`);
+  }
+  if (oldP.barcode !== newP.barcode) {
+    changes.push(`Barcode diubah`);
+  }
+  if (oldP.image !== newP.image) {
+    changes.push(`Foto produk diubah`);
+  }
+  if (oldP.description !== newP.description) {
+    changes.push(`Deskripsi produk diperbarui`);
+  }
+  return changes.length > 0 ? changes.join(" • ") : "Pembaruan informasi produk";
+}
+
 export default function InventoryView() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const { products, addProduct, updateProduct, deleteProduct } = useStore();
+
+  const [activeTab, setActiveTab] = useState<"catalog" | "history">("catalog");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<CategoryFilter>("Semua");
   const [formOpen, setFormOpen] = useState(false);
@@ -88,6 +121,11 @@ export default function InventoryView() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(8);
   const [prevQuery, setPrevQuery] = useState({ search, filter, pageSize });
+
+  // Keamanan: jika bukan admin, pastikan tab riwayat tidak dapat dibuka
+  if (!isAdmin && activeTab === "history") {
+    setActiveTab("catalog");
+  }
 
   if (
     prevQuery.search !== search ||
@@ -128,10 +166,15 @@ export default function InventoryView() {
   }, [products]);
 
   const handleSave = (data: Omit<Product, "id">) => {
+    const actor = user
+      ? { name: user.name, role: user.role, photo: user.photo }
+      : { name: "Kasir", role: "kasir" as const };
+
     if (editing) {
-      updateProduct(editing.id, data);
+      const details = describeProductChanges(editing, data);
+      updateProduct(editing.id, data, { ...actor, details });
     } else {
-      addProduct(data);
+      addProduct(data, actor);
     }
     setFormOpen(false);
     setEditing(null);
@@ -139,6 +182,54 @@ export default function InventoryView() {
 
   return (
     <div className="space-y-5 p-4 sm:p-6">
+      {/* Admin Tab Switcher */}
+      {isAdmin && (
+        <div className="flex items-center gap-2 border-b border-stone-200/90 pb-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab("catalog")}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition ${
+              activeTab === "catalog"
+                ? "bg-[var(--color-terracotta)] text-white shadow-md shadow-orange-200"
+                : "text-stone-600 hover:bg-stone-100 hover:text-stone-900"
+            }`}
+          >
+            <Package className="h-4 w-4" />
+            <span>Katalog &amp; Stok Produk</span>
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${
+                activeTab === "catalog"
+                  ? "bg-white/20 text-white"
+                  : "bg-stone-200 text-stone-700"
+              }`}
+            >
+              {products.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("history")}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition ${
+              activeTab === "history"
+                ? "bg-[var(--color-terracotta)] text-white shadow-md shadow-orange-200"
+                : "text-stone-600 hover:bg-stone-100 hover:text-stone-900"
+            }`}
+          >
+            <History className="h-4 w-4" />
+            <span>Riwayat Kasir &amp; Stok</span>
+            <span className="rounded-full border border-rose-200 bg-rose-100 px-2 py-0.5 text-[10px] font-extrabold text-rose-700">
+              Khusus Admin
+            </span>
+          </button>
+        </div>
+      )}
+
+      {/* Tampilan Riwayat (Khusus Admin) atau Katalog Produk */}
+      {isAdmin && activeTab === "history" ? (
+        <StockAuditLogView onBackToCatalog={() => setActiveTab("catalog")} />
+      ) : (
+        <>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Total Produk"
@@ -194,16 +285,29 @@ export default function InventoryView() {
             ))}
           </select>
         </div>
-        <button
-          onClick={() => {
-            setEditing(null);
-            setFormOpen(true);
-          }}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[var(--color-terracotta)] to-amber-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-orange-200 transition hover:opacity-90"
-        >
-          <PackagePlus className="h-4 w-4" />
-          Tambah Produk
-        </button>
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setActiveTab("history")}
+              title="Lihat riwayat kasir yang menambah, mengedit, atau menghapus produk"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm font-bold text-stone-700 shadow-sm transition hover:bg-stone-50 hover:text-[var(--color-terracotta)]"
+            >
+              <History className="h-4 w-4 text-[var(--color-terracotta)]" />
+              <span className="hidden sm:inline">Riwayat Kasir</span>
+            </button>
+          )}
+          <button
+            onClick={() => {
+              setEditing(null);
+              setFormOpen(true);
+            }}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[var(--color-terracotta)] to-amber-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-orange-200 transition hover:opacity-90"
+          >
+            <PackagePlus className="h-4 w-4" />
+            Tambah Produk
+          </button>
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-sm">
@@ -424,6 +528,8 @@ export default function InventoryView() {
           </div>
         )}
       </div>
+      </>
+      )}
 
       {formOpen && (
         <ProductFormModal
@@ -443,7 +549,17 @@ export default function InventoryView() {
         message={`Produk "${deleting?.name}" akan dihapus permanen dari katalog dan stok. Lanjutkan?`}
         onCancel={() => setDeleting(null)}
         onConfirm={() => {
-          if (deleting) deleteProduct(deleting.id);
+          if (deleting) {
+            const actor = user
+              ? { name: user.name, role: user.role, photo: user.photo }
+              : { name: "Kasir", role: "kasir" as const };
+            const details = `Menghapus produk "${deleting.name}" (${deleting.category}, Stok terakhir: ${deleting.stock} pcs, Harga: ${formatRupiah(deleting.price)})`;
+            deleteProduct(deleting.id, {
+              ...actor,
+              productName: deleting.name,
+              details,
+            });
+          }
           setDeleting(null);
         }}
       />

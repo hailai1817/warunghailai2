@@ -27,6 +27,22 @@ export interface Product {
   description?: string;
 }
 
+export type ProductActionType = "tambah" | "edit" | "hapus";
+
+export interface ProductAuditLog {
+  id: string;
+  date: string;
+  action: ProductActionType;
+  productId: string;
+  productName: string;
+  actorName: string;
+  actorRole: UserRole;
+  actorPhoto?: string;
+  details: string;
+  previousData?: Partial<Product>;
+  newData?: Partial<Product>;
+}
+
 export interface CartItem {
   productId: string;
   name: string;

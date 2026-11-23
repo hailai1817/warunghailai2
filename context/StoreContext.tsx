@@ -16,6 +16,7 @@ import type {
   Employee,
   PaymentMethod,
   Product,
+  ProductAuditLog,
   StoreSettings,
   Transaction,
   TransactionDiscount,
@@ -26,6 +27,7 @@ import {
   DEFAULT_SETTINGS,
   INITIAL_EMPLOYEES,
   INITIAL_PRODUCTS,
+  INITIAL_PRODUCT_LOGS,
   INITIAL_REVIEWS,
   INITIAL_TRANSACTIONS,
   migrateProductCatalog,
@@ -66,7 +68,7 @@ function persistLocal(key: string, value: unknown): void {
 // listeners: writes are explicit setDoc requests a moment after changes settle.
 const cloudTimers: Record<string, ReturnType<typeof setTimeout>> = {};
 function scheduleCloudSave(
-  key: "products" | "transactions" | "settings" | "reviews" | "employees",
+  key: "products" | "transactions" | "settings" | "reviews" | "employees" | "productLogs",
   payload: unknown
 ): void {
   if (!hasFirebaseConfig()) return;
@@ -84,6 +86,7 @@ export type EmployeeMutationResult = { ok: true } | { ok: false; error: string }
 interface StoreContextValue {
   products: Product[];
   transactions: Transaction[];
+  productLogs: ProductAuditLog[];
   cart: CartItem[];
   settings: StoreSettings;
   reviews: CustomerReview[];
@@ -100,9 +103,26 @@ interface StoreContextValue {
     discount?: TransactionDiscount,
     customerMeta?: { customerName?: string; orderedByRole?: UserRole }
   ) => CheckoutResult;
-  addProduct: (data: Omit<Product, "id">) => void;
-  updateProduct: (id: string, patch: Partial<Omit<Product, "id">>) => void;
-  deleteProduct: (id: string) => void;
+  addProduct: (
+    data: Omit<Product, "id">,
+    actor?: { name: string; role: UserRole; photo?: string }
+  ) => void;
+  updateProduct: (
+    id: string,
+    patch: Partial<Omit<Product, "id">>,
+    actor?: { name: string; role: UserRole; photo?: string; details?: string }
+  ) => void;
+  deleteProduct: (
+    id: string,
+    actor?: {
+      name: string;
+      role: UserRole;
+      photo?: string;
+      productName?: string;
+      details?: string;
+    }
+  ) => void;
+  clearProductLogs: () => void;
   addReview: (data: Omit<CustomerReview, "id" | "date">) => void;
   updateReview: (id: string, patch: Partial<Omit<CustomerReview, "id">>) => void;
   deleteReview: (id: string) => void;
@@ -124,6 +144,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [cloudReady, setCloudReady] = useState(false);
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
+  const [productLogs, setProductLogs] = useState<ProductAuditLog[]>(INITIAL_PRODUCT_LOGS);
   const [settings, setSettings] = useState<StoreSettings>(DEFAULT_SETTINGS);
   const [reviews, setReviews] = useState<CustomerReview[]>(INITIAL_REVIEWS);
   const [employees, setEmployees] = useState<Employee[]>(INITIAL_EMPLOYEES);
@@ -176,6 +197,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
     setReviews(mergedReviews);
 
+    const loadedLogs = loadFromStorage(STORAGE_KEYS.productLogs, INITIAL_PRODUCT_LOGS);
+    setProductLogs(loadedLogs);
+
     setHydrated(true);
     /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
@@ -202,6 +226,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
         if (cloud.employees && cloud.employees.length > 0) {
           setEmployees(cloud.employees);
+        }
+        if (cloud.productLogs && cloud.productLogs.length > 0) {
+          setProductLogs(cloud.productLogs);
         }
         if (cloud.reviews && cloud.reviews.length > 0) {
           const initialAvatarMap = new Map(INITIAL_REVIEWS.map((r) => [r.id, r.avatar]));
@@ -262,6 +289,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (!cloudReady) return;
     scheduleCloudSave("employees", employees);
   }, [employees, hydrated, cloudReady]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    persistLocal(STORAGE_KEYS.productLogs, productLogs);
+    if (!cloudReady) return;
+    scheduleCloudSave("productLogs", productLogs);
+  }, [productLogs, hydrated, cloudReady]);
 
   // Apply the user's color theme to the CSS custom properties used by the UI.
   // Runs on mount (after persisted settings load) and whenever the theme changes.
@@ -430,29 +464,115 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [cart, products, settings, transactions]
   );
 
-  const addProduct = useCallback((data: Omit<Product, "id">) => {
-    setProducts((prev) => {
-      const nextSeq = prev.reduce((max, p) => {
-        const n = parseInt(p.id.replace(/\D/g, ""), 10);
-        return Number.isNaN(n) ? max : Math.max(max, n);
-      }, 0);
-      const id = `P${String(nextSeq + 1).padStart(2, "0")}`;
-      return [{ ...data, id }, ...prev];
-    });
-  }, []);
+  const addProduct = useCallback(
+    (
+      data: Omit<Product, "id">,
+      actor?: { name: string; role: UserRole; photo?: string }
+    ) => {
+      let createdId = "P01";
+      setProducts((prev) => {
+        const nextSeq = prev.reduce((max, p) => {
+          const n = parseInt(p.id.replace(/\D/g, ""), 10);
+          return Number.isNaN(n) ? max : Math.max(max, n);
+        }, 0);
+        createdId = `P${String(nextSeq + 1).padStart(2, "0")}`;
+        return [{ ...data, id: createdId }, ...prev];
+      });
 
-  const updateProduct = useCallback(
-    (id: string, patch: Partial<Omit<Product, "id">>) => {
-      setProducts((prev) =>
-        prev.map((p) => (p.id === id ? { ...p, ...patch } : p))
-      );
+      if (actor) {
+        const log: ProductAuditLog = {
+          id: `LOG-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          date: new Date().toISOString(),
+          action: "tambah",
+          productId: createdId,
+          productName: data.name,
+          actorName: actor.name,
+          actorRole: actor.role,
+          actorPhoto: actor.photo,
+          details: `Menambahkan produk baru "${data.name}" (${data.category}, Stok: ${data.stock} pcs, Harga: Rp ${data.price.toLocaleString("id-ID")})`,
+          newData: data,
+        };
+        setProductLogs((prev) => [log, ...prev]);
+      }
     },
     []
   );
 
-  const deleteProduct = useCallback((id: string) => {
-    setProducts((prev) => prev.filter((p) => p.id !== id));
-    setCart((prev) => prev.filter((i) => i.productId !== id));
+  const updateProduct = useCallback(
+    (
+      id: string,
+      patch: Partial<Omit<Product, "id">>,
+      actor?: { name: string; role: UserRole; photo?: string; details?: string }
+    ) => {
+      let targetName = "";
+      setProducts((prev) =>
+        prev.map((p) => {
+          if (p.id === id) {
+            targetName = patch.name || p.name;
+            return { ...p, ...patch };
+          }
+          return p;
+        })
+      );
+
+      if (actor) {
+        const log: ProductAuditLog = {
+          id: `LOG-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          date: new Date().toISOString(),
+          action: "edit",
+          productId: id,
+          productName: targetName || patch.name || id,
+          actorName: actor.name,
+          actorRole: actor.role,
+          actorPhoto: actor.photo,
+          details: actor.details || `Memperbarui data produk "${targetName || patch.name || id}"`,
+          newData: patch,
+        };
+        setProductLogs((prev) => [log, ...prev]);
+      }
+    },
+    []
+  );
+
+  const deleteProduct = useCallback(
+    (
+      id: string,
+      actor?: {
+        name: string;
+        role: UserRole;
+        photo?: string;
+        productName?: string;
+        details?: string;
+      }
+    ) => {
+      let removedName = actor?.productName || "";
+      setProducts((prev) => {
+        const found = prev.find((p) => p.id === id);
+        if (found && !removedName) removedName = found.name;
+        return prev.filter((p) => p.id !== id);
+      });
+      setCart((prev) => prev.filter((i) => i.productId !== id));
+
+      if (actor) {
+        const log: ProductAuditLog = {
+          id: `LOG-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          date: new Date().toISOString(),
+          action: "hapus",
+          productId: id,
+          productName: removedName || id,
+          actorName: actor.name,
+          actorRole: actor.role,
+          actorPhoto: actor.photo,
+          details: actor.details || `Menghapus produk "${removedName || id}" dari stok katalog`,
+        };
+        setProductLogs((prev) => [log, ...prev]);
+      }
+    },
+    []
+  );
+
+  const clearProductLogs = useCallback(() => {
+    setProductLogs([]);
   }, []);
 
   const addReview = useCallback((data: Omit<CustomerReview, "id" | "date">) => {
@@ -556,6 +676,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const resetData = useCallback(() => {
     setProducts(INITIAL_PRODUCTS);
     setTransactions(INITIAL_TRANSACTIONS);
+    setProductLogs(INITIAL_PRODUCT_LOGS);
     setSettings(DEFAULT_SETTINGS);
     setReviews(INITIAL_REVIEWS);
     setEmployees(INITIAL_EMPLOYEES);
@@ -568,6 +689,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     () => ({
       products,
       transactions,
+      productLogs,
       cart,
       settings,
       reviews,
@@ -582,6 +704,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addProduct,
       updateProduct,
       deleteProduct,
+      clearProductLogs,
       addReview,
       updateReview,
       deleteReview,
@@ -595,6 +718,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [
       products,
       transactions,
+      productLogs,
       cart,
       settings,
       reviews,
@@ -608,6 +732,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addProduct,
       updateProduct,
       deleteProduct,
+      clearProductLogs,
       addReview,
       updateReview,
       deleteReview,

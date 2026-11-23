@@ -1,4 +1,12 @@
-import type { CustomerReview, Employee, Product, StoreSettings, Transaction, PaymentMethod } from "./types";
+import type {
+  CustomerReview,
+  Employee,
+  Product,
+  ProductAuditLog,
+  StoreSettings,
+  Transaction,
+  PaymentMethod,
+} from "./types";
 import { DEFAULT_IMAGE } from "./constants";
 import { BAKERY_THEME } from "./color";
 
@@ -418,5 +426,67 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     photo: avatarImg("photo-1438761681033-6461ffad8d80"),
     active: false,
     joinedAt: reviewDate(45, 8, 30),
+  },
+];
+
+export const INITIAL_PRODUCT_LOGS: ProductAuditLog[] = [
+  {
+    id: "LOG-01",
+    date: reviewDate(0, 8, 45),
+    action: "edit",
+    productId: "P01",
+    productName: "Roti Sobek Coklat",
+    actorName: "Dewi Sartika",
+    actorRole: "kasir",
+    actorPhoto: avatarImg("photo-1494790108377-be9c29b29330"),
+    details: "Restock stok masuk: 14 pcs → 24 pcs",
+    previousData: { stock: 14 },
+    newData: { stock: 24 },
+  },
+  {
+    id: "LOG-02",
+    date: reviewDate(1, 14, 20),
+    action: "tambah",
+    productId: "P05",
+    productName: "Croissant Butter",
+    actorName: "Bagas Pratama",
+    actorRole: "kasir",
+    actorPhoto: avatarImg("photo-1507003211169-0a1dd7228f2d"),
+    details: "Menambahkan produk baru 'Croissant Butter' (Pastry, Harga: Rp 22.000, Stok: 18 pcs)",
+    newData: { name: "Croissant Butter", category: "Pastry", price: 22000, stock: 18 },
+  },
+  {
+    id: "LOG-03",
+    date: reviewDate(2, 9, 15),
+    action: "edit",
+    productId: "P02",
+    productName: "Roti Manis Selai Stroberi",
+    actorName: "Tika Wulandari",
+    actorRole: "kasir",
+    actorPhoto: avatarImg("photo-1438761681033-6461ffad8d80"),
+    details: "Penyesuaian harga jual: Rp 14.000 → Rp 15.000",
+    previousData: { price: 14000 },
+    newData: { price: 15000 },
+  },
+  {
+    id: "LOG-04",
+    date: reviewDate(3, 16, 5),
+    action: "hapus",
+    productId: "P99",
+    productName: "Roti Kismis Keju Klasik",
+    actorName: "Dewi Sartika",
+    actorRole: "kasir",
+    actorPhoto: avatarImg("photo-1494790108377-be9c29b29330"),
+    details: "Menghapus produk 'Roti Kismis Keju Klasik' (Varian tidak diproduksi lagi)",
+  },
+  {
+    id: "LOG-05",
+    date: reviewDate(4, 11, 30),
+    action: "edit",
+    productId: "P04",
+    productName: "Donat Gula",
+    actorName: "Hailai",
+    actorRole: "admin",
+    details: "Perbarui foto dan deskripsi produk agar lebih menarik pelanggan",
   },
 ];
