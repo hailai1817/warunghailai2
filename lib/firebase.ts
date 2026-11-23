@@ -13,12 +13,24 @@ export interface FirebaseConfigObject {
 }
 
 export const ENV_FIREBASE_CONFIG: FirebaseConfigObject = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? "",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? "",
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "",
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ?? "",
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? "",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID ?? "",
+  apiKey:
+    (process.env.NEXT_PUBLIC_FIREBASE_API_KEY && process.env.NEXT_PUBLIC_FIREBASE_API_KEY.trim()) ||
+    "AIzaSyAQ7JJkh1Zb2EU63KXawSfU2uhHZ5gqLV4",
+  authDomain:
+    (process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN && process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN.trim()) ||
+    "webwarung-hailai.firebaseapp.com",
+  projectId:
+    (process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID && process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID.trim()) ||
+    "webwarung-hailai",
+  storageBucket:
+    (process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET && process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET.trim()) ||
+    "webwarung-hailai.firebasestorage.app",
+  messagingSenderId:
+    (process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID && process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID.trim()) ||
+    "260787210326",
+  appId:
+    (process.env.NEXT_PUBLIC_FIREBASE_APP_ID && process.env.NEXT_PUBLIC_FIREBASE_APP_ID.trim()) ||
+    "1:260787210326:web:4a756dc3f22a2a3f7753f7",
 };
 
 export const FIREBASE_STORAGE_KEY = "hailai_firebase_config";

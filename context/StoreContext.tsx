@@ -38,7 +38,13 @@ import {
 } from "@/lib/format";
 import { applyThemeVars, BAKERY_THEME } from "@/lib/color";
 import { hasFirebaseConfig } from "@/lib/firebase";
-import { cloudLoadAll, cloudSave } from "@/lib/firestore-service";
+import {
+  cloudDeleteDoc,
+  cloudLoadAll,
+  cloudSave,
+  cloudSaveDoc,
+  subscribeToRealtimeCloud,
+} from "@/lib/firestore-service";
 
 function loadFromStorage<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -64,17 +70,22 @@ function persistLocal(key: string, value: unknown): void {
 }
 
 // Debounced request/response sync to Firestore. Firestore is the source of
-// truth; localStorage stays as an offline/first-paint cache. No realtime
-// listeners: writes are explicit setDoc requests a moment after changes settle.
+// truth; localStorage stays as an offline/first-paint cache.
 const cloudTimers: Record<string, ReturnType<typeof setTimeout>> = {};
+const lastCloudSaved: Record<string, string> = {};
+
 function scheduleCloudSave(
   key: "products" | "transactions" | "settings" | "reviews" | "employees" | "productLogs",
   payload: unknown
 ): void {
   if (!hasFirebaseConfig()) return;
+  const serialized = JSON.stringify(payload);
+  if (lastCloudSaved[key] === serialized) return;
+
   const existing = cloudTimers[key];
   if (existing) clearTimeout(existing);
   cloudTimers[key] = setTimeout(() => {
+    lastCloudSaved[key] = serialized;
     void (
       cloudSave as unknown as (k: string, p: unknown) => Promise<boolean>
     )(key, payload);
@@ -261,12 +272,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
-  // One request/response round-trip after first render: pull the full dataset
-  // from Firestore. The cloud version wins only when it actually has data; an
-  // empty/never-populated cloud keeps the local seed data and lets the save
-  // effects upload it on the first run.
+  // Load initial data from Firestore and establish realtime sync across all devices
   useEffect(() => {
     let cancelled = false;
+    let unsubRealtime: (() => void) | null = null;
+
     void (async () => {
       if (!hasFirebaseConfig()) {
         setCloudReady(true);
@@ -276,29 +286,34 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
       if (cloud !== null) {
         if (cloud.products && cloud.products.length > 0) {
+          lastCloudSaved["products"] = JSON.stringify(cloud.products);
           setProducts(migrateProductCatalog(cloud.products));
         }
         if (cloud.transactions && cloud.transactions.length > 0) {
+          lastCloudSaved["transactions"] = JSON.stringify(cloud.transactions);
           setTransactions(cloud.transactions);
         }
         if (cloud.employees && cloud.employees.length > 0) {
+          lastCloudSaved["employees"] = JSON.stringify(cloud.employees);
           setEmployees(cloud.employees);
         }
         if (cloud.productLogs && cloud.productLogs.length > 0) {
+          lastCloudSaved["productLogs"] = JSON.stringify(cloud.productLogs);
           setProductLogs(cloud.productLogs);
         }
         if (cloud.reviews && cloud.reviews.length > 0) {
           const initialAvatarMap = new Map(INITIAL_REVIEWS.map((r) => [r.id, r.avatar]));
-          setReviews(
-            cloud.reviews.map((r) => {
-              if (!r.avatar && initialAvatarMap.has(r.id)) {
-                return { ...r, avatar: initialAvatarMap.get(r.id) };
-              }
-              return r;
-            })
-          );
+          const mapped = cloud.reviews.map((r) => {
+            if (!r.avatar && initialAvatarMap.has(r.id)) {
+              return { ...r, avatar: initialAvatarMap.get(r.id) };
+            }
+            return r;
+          });
+          lastCloudSaved["reviews"] = JSON.stringify(mapped);
+          setReviews(mapped);
         }
         if (cloud.settings) {
+          lastCloudSaved["settings"] = JSON.stringify(cloud.settings);
           setSettings({
             ...cloud.settings,
             useRealtimeDate: cloud.settings.useRealtimeDate ?? true,
@@ -306,9 +321,47 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
       }
       setCloudReady(true);
+
+      // Realtime listener for cross-device instantaneous sync
+      unsubRealtime = subscribeToRealtimeCloud({
+        onReviews: (cloudReviews) => {
+          if (cancelled) return;
+          const initialAvatarMap = new Map(INITIAL_REVIEWS.map((r) => [r.id, r.avatar]));
+          const mapped = cloudReviews.map((r) => {
+            if (!r.avatar && initialAvatarMap.has(r.id)) {
+              return { ...r, avatar: initialAvatarMap.get(r.id) };
+            }
+            return r;
+          });
+          lastCloudSaved["reviews"] = JSON.stringify(mapped);
+          setReviews(mapped);
+        },
+        onTransactions: (t) => {
+          if (cancelled) return;
+          lastCloudSaved["transactions"] = JSON.stringify(t);
+          setTransactions(t);
+        },
+        onProducts: (p) => {
+          if (cancelled) return;
+          lastCloudSaved["products"] = JSON.stringify(p);
+          setProducts(migrateProductCatalog(p));
+        },
+        onEmployees: (e) => {
+          if (cancelled) return;
+          lastCloudSaved["employees"] = JSON.stringify(e);
+          setEmployees(e);
+        },
+        onProductLogs: (l) => {
+          if (cancelled) return;
+          lastCloudSaved["productLogs"] = JSON.stringify(l);
+          setProductLogs(l);
+        },
+      });
     })();
+
     return () => {
       cancelled = true;
+      if (unsubRealtime) unsubRealtime();
     };
   }, []);
 
@@ -515,6 +568,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         })
       );
       setTransactions((prev) => [transaction, ...prev]);
+      void cloudSaveDoc("transactions", transaction.id, transaction);
       setCart([]);
       return { ok: true, transaction };
     },
@@ -639,20 +693,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return Number.isNaN(n) ? max : Math.max(max, n);
       }, 0);
       const id = `R${String(nextSeq + 1).padStart(2, "0")}`;
-      return [{ ...data, id, date: new Date().toISOString() }, ...prev];
+      const newReview = { ...data, id, date: new Date().toISOString() };
+      void cloudSaveDoc("reviews", id, newReview);
+      return [newReview, ...prev];
     });
   }, []);
 
   const updateReview = useCallback(
     (id: string, patch: Partial<Omit<CustomerReview, "id">>) => {
-      setReviews((prev) =>
-        prev.map((r) => (r.id === id ? { ...r, ...patch } : r))
-      );
+      setReviews((prev) => {
+        const target = prev.find((r) => r.id === id);
+        if (target) {
+          const updated = { ...target, ...patch };
+          void cloudSaveDoc("reviews", id, updated);
+        }
+        return prev.map((r) => (r.id === id ? { ...r, ...patch } : r));
+      });
     },
     []
   );
 
   const deleteReview = useCallback((id: string) => {
+    void cloudDeleteDoc("reviews", id);
     setReviews((prev) => prev.filter((r) => r.id !== id));
   }, []);
 

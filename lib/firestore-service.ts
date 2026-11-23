@@ -2,9 +2,11 @@
 
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
+  onSnapshot,
   setDoc,
   writeBatch,
 } from "firebase/firestore";
@@ -190,5 +192,131 @@ export async function cloudTestConnection(): Promise<CloudConnectionStatus> {
     connected: true,
     message:
       "Terhubung ke Firebase Firestore (request/response). Data tersimpan di cloud + cache lokal.",
+  };
+}
+
+export async function cloudSaveDoc(
+  col: CloudCollectionKey,
+  docId: string,
+  data: unknown
+): Promise<boolean> {
+  const db = getDb();
+  if (!db) return false;
+  try {
+    await setDoc(doc(db, col, docId), cleanForFirestore(data) as Record<string, unknown>, { merge: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function cloudDeleteDoc(
+  col: CloudCollectionKey,
+  docId: string
+): Promise<boolean> {
+  const db = getDb();
+  if (!db) return false;
+  try {
+    await deleteDoc(doc(db, col, docId));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export interface RealtimeSubscribers {
+  onReviews?: (reviews: CustomerReview[]) => void;
+  onTransactions?: (transactions: Transaction[]) => void;
+  onProducts?: (products: Product[]) => void;
+  onEmployees?: (employees: Employee[]) => void;
+  onProductLogs?: (logs: ProductAuditLog[]) => void;
+}
+
+export function subscribeToRealtimeCloud(handlers: RealtimeSubscribers): () => void {
+  const db = getDb();
+  if (!db) return () => {};
+
+  const unsubs: Array<() => void> = [];
+
+  if (handlers.onReviews) {
+    unsubs.push(
+      onSnapshot(
+        collection(db, "reviews"),
+        (snap) => {
+          if (!snap.empty && handlers.onReviews) {
+            const list = snap.docs.map((d) => d.data() as CustomerReview);
+            list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            handlers.onReviews(list);
+          }
+        },
+        () => {}
+      )
+    );
+  }
+
+  if (handlers.onTransactions) {
+    unsubs.push(
+      onSnapshot(
+        collection(db, "transactions"),
+        (snap) => {
+          if (!snap.empty && handlers.onTransactions) {
+            const list = snap.docs.map((d) => d.data() as Transaction);
+            list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            handlers.onTransactions(list);
+          }
+        },
+        () => {}
+      )
+    );
+  }
+
+  if (handlers.onProducts) {
+    unsubs.push(
+      onSnapshot(
+        collection(db, "products"),
+        (snap) => {
+          if (!snap.empty && handlers.onProducts) {
+            const list = snap.docs.map((d) => d.data() as Product);
+            handlers.onProducts(list);
+          }
+        },
+        () => {}
+      )
+    );
+  }
+
+  if (handlers.onEmployees) {
+    unsubs.push(
+      onSnapshot(
+        collection(db, "employees"),
+        (snap) => {
+          if (!snap.empty && handlers.onEmployees) {
+            const list = snap.docs.map((d) => d.data() as Employee);
+            handlers.onEmployees(list);
+          }
+        },
+        () => {}
+      )
+    );
+  }
+
+  if (handlers.onProductLogs) {
+    unsubs.push(
+      onSnapshot(
+        collection(db, "productLogs"),
+        (snap) => {
+          if (!snap.empty && handlers.onProductLogs) {
+            const list = snap.docs.map((d) => d.data() as ProductAuditLog);
+            list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            handlers.onProductLogs(list);
+          }
+        },
+        () => {}
+      )
+    );
+  }
+
+  return () => {
+    unsubs.forEach((unsub) => unsub());
   };
 }
