@@ -163,6 +163,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         "hailai.reviews.v1",
         "hailai.employees.v1",
         "hailai.productLogs.v1",
+        "hailai.products.v2",
+        "hailai.transactions.v2",
+        "hailai.settings.v2",
+        "hailai.reviews.v2",
+        "hailai.employees.v2",
+        "hailai.productLogs.v2",
       ];
       obsoleteKeys.forEach((k) => {
         try {
@@ -181,7 +187,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     ];
     setProducts(migrateProductCatalog(mergedProducts));
 
-    setTransactions(loadFromStorage(STORAGE_KEYS.transactions, INITIAL_TRANSACTIONS));
+    const loadedTransactions = loadFromStorage(STORAGE_KEYS.transactions, INITIAL_TRANSACTIONS);
+    const trxIdSet = new Set(loadedTransactions.map((t) => t.id));
+    const mergedTransactions = [
+      ...loadedTransactions,
+      ...INITIAL_TRANSACTIONS.filter((t) => !trxIdSet.has(t.id)),
+    ];
+    setTransactions(mergedTransactions);
 
     const loadedSettings = loadFromStorage(STORAGE_KEYS.settings, DEFAULT_SETTINGS);
     setSettings({
@@ -238,7 +250,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setReviews(mergedReviews);
 
     const loadedLogs = loadFromStorage(STORAGE_KEYS.productLogs, INITIAL_PRODUCT_LOGS);
-    setProductLogs(loadedLogs);
+    const logIdSet = new Set(loadedLogs.map((l) => l.id));
+    const mergedLogs = [
+      ...loadedLogs,
+      ...INITIAL_PRODUCT_LOGS.filter((l) => !logIdSet.has(l.id)),
+    ];
+    setProductLogs(mergedLogs);
 
     setHydrated(true);
     /* eslint-enable react-hooks/set-state-in-effect */
