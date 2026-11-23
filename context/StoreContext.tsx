@@ -155,14 +155,40 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // read once after mount, before any writes are allowed.
   useEffect(() => {
     /* eslint-disable react-hooks/set-state-in-effect -- reading persisted data after hydration */
+    if (typeof window !== "undefined") {
+      const obsoleteKeys = [
+        "hailai.products.v1",
+        "hailai.transactions.v1",
+        "hailai.settings.v1",
+        "hailai.reviews.v1",
+        "hailai.employees.v1",
+        "hailai.productLogs.v1",
+      ];
+      obsoleteKeys.forEach((k) => {
+        try {
+          window.localStorage.removeItem(k);
+        } catch {
+          // ignore
+        }
+      });
+    }
+
     const loadedProducts = loadFromStorage(STORAGE_KEYS.products, INITIAL_PRODUCTS);
-    setProducts(migrateProductCatalog(loadedProducts));
+    const prodIdSet = new Set(loadedProducts.map((p) => p.id));
+    const mergedProducts = [
+      ...loadedProducts,
+      ...INITIAL_PRODUCTS.filter((p) => !prodIdSet.has(p.id)),
+    ];
+    setProducts(migrateProductCatalog(mergedProducts));
+
     setTransactions(loadFromStorage(STORAGE_KEYS.transactions, INITIAL_TRANSACTIONS));
+
     const loadedSettings = loadFromStorage(STORAGE_KEYS.settings, DEFAULT_SETTINGS);
     setSettings({
       ...loadedSettings,
       useRealtimeDate: loadedSettings.useRealtimeDate ?? true,
     });
+
     const loadedEmployees = loadFromStorage(STORAGE_KEYS.employees, INITIAL_EMPLOYEES);
     const initialEmpMap = new Map(INITIAL_EMPLOYEES.map((e) => [e.id, e]));
     let mergedEmployees: Employee[] = loadedEmployees.map((e) => {
@@ -177,6 +203,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         bio: e.bio || seed?.bio,
       };
     });
+    // Append any employee from INITIAL_EMPLOYEES missing in loadedEmployees
+    for (const seed of INITIAL_EMPLOYEES) {
+      if (
+        !mergedEmployees.some(
+          (e) => e.id === seed.id || e.name.toLowerCase() === seed.name.toLowerCase()
+        )
+      ) {
+        mergedEmployees.push(seed);
+      }
+    }
     // Ensure Admin (Hailai) exists
     if (!mergedEmployees.some((e) => e.name.toLowerCase() === "hailai")) {
       const adminSeed = INITIAL_EMPLOYEES.find((e) => e.name.toLowerCase() === "hailai");
@@ -186,15 +222,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
     setEmployees(mergedEmployees);
 
-    // Merge default avatar pictures for reviews that don't have one yet
+    // Merge default avatar pictures for reviews that don't have one yet, and append any new reviews
     const loadedReviews = loadFromStorage(STORAGE_KEYS.reviews, INITIAL_REVIEWS);
     const initialAvatarMap = new Map(INITIAL_REVIEWS.map((r) => [r.id, r.avatar]));
-    const mergedReviews = loadedReviews.map((r) => {
-      if (!r.avatar && initialAvatarMap.has(r.id)) {
-        return { ...r, avatar: initialAvatarMap.get(r.id) };
-      }
-      return r;
-    });
+    const reviewIdSet = new Set(loadedReviews.map((r) => r.id));
+    const mergedReviews = [
+      ...loadedReviews.map((r) => {
+        if (!r.avatar && initialAvatarMap.has(r.id)) {
+          return { ...r, avatar: initialAvatarMap.get(r.id) };
+        }
+        return r;
+      }),
+      ...INITIAL_REVIEWS.filter((r) => !reviewIdSet.has(r.id)),
+    ];
     setReviews(mergedReviews);
 
     const loadedLogs = loadFromStorage(STORAGE_KEYS.productLogs, INITIAL_PRODUCT_LOGS);

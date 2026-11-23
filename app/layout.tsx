@@ -18,6 +18,11 @@ export const metadata: Metadata = {
   title: "HaiLai's Bakery and Cafe - POS & Katalog",
   description:
     "Aplikasi Point of Sale (POS) & Katalog all-in-one untuk Bakery dan Cafe HaiLai's Bakery and Cafe.",
+  other: {
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+    Pragma: "no-cache",
+    Expires: "0",
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
