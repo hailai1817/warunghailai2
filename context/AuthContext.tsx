@@ -133,7 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let matchedId: string | undefined;
 
       if (role === "admin") {
-        if (cleanName.toLowerCase() !== "hailai" || password !== "admin123") {
+        if (cleanName.toLowerCase() !== "hailai" || password !== "hailai180608") {
           return {
             ok: false,
             error: "Login Admin gagal! Nama pengguna atau password Admin salah.",
