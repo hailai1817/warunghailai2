@@ -21,6 +21,7 @@ import EmployeesView from "./employees/EmployeesView";
 import SettingsView from "./settings/SettingsView";
 import ProfileView from "./profile/ProfileView";
 import Avatar from "./ui/Avatar";
+import AutoScrollWidget from "./ui/AutoScrollWidget";
 
 function AppContent() {
   const { user, authReady, logout } = useAuth();
@@ -145,6 +146,7 @@ function AppContent() {
       </div>
 
       <BottomNav view={activeView} onNavigate={navigate} />
+      <AutoScrollWidget />
     </div>
   );
 }

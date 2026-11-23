@@ -5,7 +5,10 @@ import Image from "next/image";
 import {
   AlertTriangle,
   Boxes,
-  CircleDollarSign,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Package,
   PackagePlus,
   Pencil,
@@ -53,6 +56,27 @@ const STATUS_STYLE = {
   Habis: { variant: "red" as const, dot: "bg-red-500" },
 };
 
+function getPageNumbers(current: number, total: number): number[] {
+  if (total <= 5) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+  const pages: number[] = [];
+  pages.push(1);
+  if (current > 3) {
+    pages.push(-1);
+  }
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+  for (let i = start; i <= end; i++) {
+    pages.push(i);
+  }
+  if (current < total - 2) {
+    pages.push(-1);
+  }
+  pages.push(total);
+  return pages;
+}
+
 export default function InventoryView() {
   const { products, addProduct, updateProduct, deleteProduct } = useStore();
   const [search, setSearch] = useState("");
@@ -60,6 +84,19 @@ export default function InventoryView() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState<Product | null>(null);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(8);
+  const [prevQuery, setPrevQuery] = useState({ search, filter, pageSize });
+
+  if (
+    prevQuery.search !== search ||
+    prevQuery.filter !== filter ||
+    prevQuery.pageSize !== pageSize
+  ) {
+    setPrevQuery({ search, filter, pageSize });
+    setCurrentPage(1);
+  }
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -73,6 +110,16 @@ export default function InventoryView() {
       return matchQuery && matchCat;
     });
   }, [products, search, filter]);
+
+  const totalItems = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = (safeCurrentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
+
+  const paginatedProducts = useMemo(() => {
+    return filtered.slice(startIndex, endIndex);
+  }, [filtered, startIndex, endIndex]);
 
   const stats = useMemo(() => {
     const low = products.filter((p) => getStockStatus(p.stock) === "Hampir Habis").length;
@@ -175,7 +222,7 @@ export default function InventoryView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
-              {filtered.map((product) => {
+              {paginatedProducts.map((product) => {
                 const status = getStockStatus(product.stock);
                 const style = STATUS_STYLE[status];
                 return (
@@ -283,14 +330,97 @@ export default function InventoryView() {
         )}
 
         {filtered.length > 0 && (
-          <div className="flex items-center justify-between border-t border-stone-100 px-4 py-3 text-xs text-stone-500">
-            <span>
-              Menampilkan <b>{filtered.length}</b> dari <b>{products.length}</b> produk
-            </span>
-            <span className="flex items-center gap-1.5">
-              <CircleDollarSign className="h-4 w-4 text-stone-400" />
-              Stok berkurang otomatis setiap transaksi kasir berhasil.
-            </span>
+          <div className="flex flex-col gap-3 border-t border-stone-200/80 bg-stone-50/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-3 text-xs text-stone-600">
+              <span>
+                Menampilkan <b>{totalItems === 0 ? 0 : startIndex + 1} - {endIndex}</b> dari <b>{totalItems}</b> produk
+              </span>
+              <span className="hidden text-stone-300 sm:inline">•</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-stone-500 font-medium">Per halaman:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs font-bold text-stone-700 shadow-sm outline-none transition focus:border-[var(--color-terracotta)]"
+                >
+                  <option value={5}>5 produk</option>
+                  <option value={8}>8 produk</option>
+                  <option value={10}>10 produk</option>
+                  <option value={15}>15 produk</option>
+                  <option value={20}>20 produk</option>
+                </select>
+              </div>
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1 self-center sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={safeCurrentPage === 1}
+                  title="Halaman Pertama"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-stone-200 bg-white text-xs font-bold text-stone-600 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-35"
+                >
+                  <ChevronsLeft className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={safeCurrentPage === 1}
+                  title="Halaman Sebelumnya"
+                  className="flex h-8 items-center gap-1 rounded-lg border border-stone-200 bg-white px-2.5 text-xs font-bold text-stone-600 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-35"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  <span className="hidden sm:inline">Sebelumnya</span>
+                </button>
+
+                <div className="flex items-center gap-1 px-1">
+                  {getPageNumbers(safeCurrentPage, totalPages).map((p, idx) =>
+                    p === -1 ? (
+                      <span key={`ellipsis-${idx}`} className="px-1 text-xs text-stone-400">
+                        ...
+                      </span>
+                    ) : (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setCurrentPage(p)}
+                        className={`flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-bold transition ${
+                          safeCurrentPage === p
+                            ? "bg-[var(--color-terracotta)] text-white shadow-sm"
+                            : "border border-stone-200 bg-white text-stone-700 hover:border-amber-300 hover:bg-amber-50"
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    )
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safeCurrentPage === totalPages}
+                  title="Halaman Berikutnya"
+                  className="flex h-8 items-center gap-1 rounded-lg border border-stone-200 bg-white px-2.5 text-xs font-bold text-stone-600 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-35"
+                >
+                  <span className="hidden sm:inline">Berikutnya</span>
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={safeCurrentPage === totalPages}
+                  title="Halaman Terakhir"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-stone-200 bg-white text-xs font-bold text-stone-600 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-35"
+                >
+                  <ChevronsRight className="h-4 w-4" />
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
