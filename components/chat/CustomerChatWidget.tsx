@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Bot,
   CheckCheck,
   Headphones,
   Maximize2,
@@ -14,6 +15,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { useStore } from "@/context/StoreContext";
 import { STORAGE_KEYS } from "@/lib/constants";
+import { generateBotAutoReply } from "@/lib/cs-bot";
 
 const QUICK_QUESTIONS = [
   "Halo CS, apakah stok roti hari ini masih lengkap?",
@@ -30,12 +32,16 @@ export default function CustomerChatWidget() {
     markCsRead,
     customerChatOpen,
     setCustomerChatOpen,
+    settings,
   } = useStore();
 
   const [isMinimized, setIsMinimized] = useState(false);
   const [inputText, setInputText] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [isBotTyping, setIsBotTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const adminStatus: "online" | "busy" | "offline" = settings.csAdminStatus || "online";
 
   // Generate or retrieve persistent customer thread ID
   const customerName = user?.name || "Pelanggan";
@@ -61,7 +67,7 @@ export default function CustomerChatWidget() {
     );
   }, [csChats, threadId, customerName]);
 
-  // Check if there are unread messages from admin
+  // Check if there are unread messages from admin or bot
   const hasUnreadReply = Boolean(activeThread?.unreadByCustomer);
 
   // Mark thread read when user opens widget
@@ -76,7 +82,7 @@ export default function CustomerChatWidget() {
     if (customerChatOpen && !isMinimized) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [customerChatOpen, isMinimized, activeThread?.messages]);
+  }, [customerChatOpen, isMinimized, activeThread?.messages, isBotTyping]);
 
   const handleSend = async (textToSend?: string) => {
     const text = (textToSend || inputText).trim();
@@ -89,6 +95,34 @@ export default function CustomerChatWidget() {
       await sendCsMessage(threadId, text, "pelanggan", customerName, {
         customerName,
       });
+
+      // Respon Otomatis Bot jika Admin sedang Sibuk atau Tidak Aktif (Offline)
+      const autoReplyEnabled = settings.csAutoReplyEnabled ?? true;
+      if (autoReplyEnabled && (adminStatus === "busy" || adminStatus === "offline")) {
+        setIsBotTyping(true);
+        setTimeout(async () => {
+          try {
+            const botReply = generateBotAutoReply({
+              customerName,
+              customerMessage: text,
+              adminStatus,
+              customBusyMessage: settings.csCustomBusyMessage,
+              customOfflineMessage: settings.csCustomOfflineMessage,
+            });
+
+            await sendCsMessage(
+              threadId,
+              botReply,
+              "bot",
+              "Bot Asisten HaiLai",
+              { customerName },
+              true
+            );
+          } finally {
+            setIsBotTyping(false);
+          }
+        }, 800);
+      }
     } finally {
       setIsSending(false);
     }
@@ -117,7 +151,7 @@ export default function CustomerChatWidget() {
           }}
           className="group relative flex items-center gap-2 rounded-full border border-amber-300/40 bg-gradient-to-r from-stone-900 via-amber-950 to-stone-800 px-3.5 py-2.5 text-white shadow-xl shadow-stone-900/30 transition-all duration-300 hover:scale-105 hover:border-amber-400 hover:shadow-2xl active:scale-95"
           aria-label="Buka Chat CS"
-          title="Butuh bantuan? Chat CS Toko (Admin)"
+          title="Butuh bantuan? Chat CS Toko & Asisten HaiLai"
         >
           <div className="relative flex h-7 w-7 items-center justify-center rounded-full bg-amber-500/20 text-amber-400">
             <Headphones className="h-4 w-4 transition-transform group-hover:rotate-12" />
@@ -148,7 +182,7 @@ export default function CustomerChatWidget() {
           className={`flex flex-col rounded-3xl border border-stone-200/90 bg-white shadow-2xl transition-all duration-300 ${
             isMinimized
               ? "h-16 w-80 sm:w-96"
-              : "h-[520px] max-h-[80vh] w-[92vw] max-w-sm sm:w-[370px]"
+              : "h-[540px] max-h-[82vh] w-[92vw] max-w-sm sm:w-[380px]"
           }`}
         >
           {/* Header */}
@@ -156,17 +190,39 @@ export default function CustomerChatWidget() {
             <div className="flex items-center gap-2.5">
               <div className="relative flex h-9 w-9 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-400 ring-1 ring-amber-400/30">
                 <Headphones className="h-4.5 w-4.5" />
-                <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-stone-900 animate-pulse" />
+                <span
+                  className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-stone-900 ${
+                    adminStatus === "online"
+                      ? "bg-emerald-500 animate-pulse"
+                      : adminStatus === "busy"
+                        ? "bg-amber-400"
+                        : "bg-stone-400"
+                  }`}
+                />
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <h3 className="text-xs font-black leading-tight text-white">CS Warung HaiLai</h3>
-                  <span className="rounded bg-emerald-500/20 px-1.5 py-0.2 text-[9px] font-bold text-emerald-300 ring-1 ring-emerald-500/30">
-                    Admin
+                  <h3 className="text-xs font-black leading-tight text-white">CS HaiLai Bakery</h3>
+                  <span
+                    className={`rounded px-1.5 py-0.2 text-[9px] font-bold ring-1 ${
+                      adminStatus === "online"
+                        ? "bg-emerald-500/20 text-emerald-300 ring-emerald-500/30"
+                        : adminStatus === "busy"
+                          ? "bg-amber-500/20 text-amber-300 ring-amber-500/30"
+                          : "bg-stone-500/20 text-stone-300 ring-stone-500/30"
+                    }`}
+                  >
+                    {adminStatus === "online"
+                      ? "Admin Aktif"
+                      : adminStatus === "busy"
+                        ? "Admin Sibuk (Bot Siaga)"
+                        : "Offline (Bot Siaga)"}
                   </span>
                 </div>
                 <p className="text-[10px] font-medium text-amber-200/80">
-                  Respon langsung Admin (Bukan Bot)
+                  {adminStatus === "online"
+                    ? "Respon langsung Admin toko"
+                    : "Bot Asisten siap bantu saat Admin sibuk"}
                 </p>
               </div>
             </div>
@@ -193,16 +249,35 @@ export default function CustomerChatWidget() {
             <>
               {/* Message Feed */}
               <div className="flex-1 overflow-y-auto bg-stone-50/70 p-4 space-y-3">
+                {/* Status Notice if Admin is busy or offline */}
+                {adminStatus !== "online" && (
+                  <div className="rounded-2xl border border-amber-300/60 bg-amber-50/90 p-2.5 text-[11px] text-amber-900 shadow-2xs">
+                    <div className="flex items-center gap-1.5 font-bold mb-0.5">
+                      <Bot className="h-3.5 w-3.5 text-amber-700" />
+                      <span>
+                        {adminStatus === "busy"
+                          ? "Admin Sedang Sibuk Melayani Toko"
+                          : "Admin Sedang Tidak Aktif"}
+                      </span>
+                    </div>
+                    <p className="text-[10px] leading-relaxed text-amber-800">
+                      {adminStatus === "busy"
+                        ? "Bot Asisten HaiLai akan memberikan respon otomatis saat Anda bertanya. Admin akan membalas segera setelah selesai di kasir."
+                        : "Pesan Anda tetap tersimpan dan Bot Asisten akan mencatat pertanyaan Anda untuk ditindaklanjuti Admin."}
+                    </p>
+                  </div>
+                )}
+
                 {/* Intro Welcome Card */}
-                <div className="rounded-2xl border border-amber-200/80 bg-amber-50/70 p-3.5 text-xs text-amber-900 shadow-sm">
+                <div className="rounded-2xl border border-amber-200/80 bg-white p-3 text-xs text-amber-900 shadow-sm">
                   <div className="flex items-center gap-2 font-bold text-amber-950 mb-1">
                     <Sparkles className="h-4 w-4 text-amber-600" />
                     <span>Layanan Pelanggan HaiLai</span>
                   </div>
-                  <p className="leading-relaxed text-stone-600">
+                  <p className="leading-relaxed text-stone-600 text-[11px]">
                     Halo <strong>{customerName}</strong>! Ada yang bisa kami bantu terkait menu,
-                    ketersediaan stok roti, pembayaran, atau kendala belanja? Tulis pesan Anda di
-                    bawah, Admin kami akan segera merespons langsung.
+                    ketersediaan stok roti, pembayaran QRIS, atau pesanan Anda? Tulis pesan Anda di
+                    bawah ini ya.
                   </p>
                 </div>
 
@@ -229,6 +304,8 @@ export default function CustomerChatWidget() {
                 {/* Messages List */}
                 {activeThread?.messages.map((msg) => {
                   const isMe = msg.senderRole === "pelanggan";
+                  const isBot = msg.senderRole === "bot" || Boolean(msg.isBotReply);
+
                   return (
                     <div
                       key={msg.id}
@@ -240,6 +317,13 @@ export default function CustomerChatWidget() {
                             <span>Anda</span>
                             <User className="h-3 w-3" />
                           </>
+                        ) : isBot ? (
+                          <>
+                            <Bot className="h-3 w-3 text-purple-600" />
+                            <span className="text-purple-700 font-black">
+                              Bot Asisten HaiLai
+                            </span>
+                          </>
                         ) : (
                           <>
                             <Headphones className="h-3 w-3 text-amber-600" />
@@ -248,10 +332,12 @@ export default function CustomerChatWidget() {
                         )}
                       </div>
                       <div
-                        className={`max-w-[82%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed shadow-sm ${
+                        className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed shadow-sm ${
                           isMe
                             ? "rounded-tr-none bg-gradient-to-r from-amber-600 to-[var(--color-terracotta)] text-white"
-                            : "rounded-tl-none border border-stone-200 bg-white text-stone-800"
+                            : isBot
+                              ? "rounded-tl-none border border-purple-200 bg-purple-50/90 text-purple-950 font-medium"
+                              : "rounded-tl-none border border-stone-200 bg-white text-stone-800"
                         }`}
                       >
                         <p className="whitespace-pre-wrap break-words">{msg.text}</p>
@@ -263,11 +349,26 @@ export default function CustomerChatWidget() {
                             minute: "2-digit",
                           })}
                         </span>
+                        {isBot && (
+                          <span className="font-semibold text-purple-600">
+                            • Auto-Reply
+                          </span>
+                        )}
                         {isMe && <CheckCheck className="h-3 w-3 text-amber-600" />}
                       </div>
                     </div>
                   );
                 })}
+
+                {/* Bot Typing Indicator */}
+                {isBotTyping && (
+                  <div className="flex items-center gap-2 rounded-2xl bg-purple-50 border border-purple-200 px-3 py-2 text-xs text-purple-800 animate-pulse">
+                    <Bot className="h-4 w-4 text-purple-600 animate-bounce" />
+                    <span className="font-bold text-[11px]">
+                      Bot Asisten sedang mengetik respon otomatis...
+                    </span>
+                  </div>
+                )}
 
                 <div ref={messagesEndRef} />
               </div>
@@ -286,7 +387,11 @@ export default function CustomerChatWidget() {
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Tulis pesan ke Admin CS..."
+                    placeholder={
+                      adminStatus === "busy"
+                        ? "Tulis pesan (Bot akan merespons otomatis)..."
+                        : "Tulis pesan ke CS HaiLai..."
+                    }
                     disabled={isSending}
                     className="flex-1 rounded-xl border border-stone-200 bg-stone-50 px-3.5 py-2.5 text-xs font-medium text-stone-800 placeholder-stone-400 transition focus:border-amber-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-200 disabled:opacity-50"
                   />
@@ -300,7 +405,9 @@ export default function CustomerChatWidget() {
                   </button>
                 </form>
                 <p className="mt-1.5 text-center text-[10px] text-stone-400">
-                  Respon langsung dari Admin • Privasi Anda terjaga
+                  {adminStatus === "online"
+                    ? "Admin Online • Respon Langsung"
+                    : "Didukung Bot Asisten Cerdas saat Admin Sibuk"}
                 </p>
               </div>
             </>
@@ -310,3 +417,4 @@ export default function CustomerChatWidget() {
     </div>
   );
 }
+

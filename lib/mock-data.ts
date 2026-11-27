@@ -615,6 +615,8 @@ export const DEFAULT_SETTINGS: StoreSettings = {
   receiptFooter: "Terima kasih sudah berbelanja di HaiLai's Bakery and Cafe. Sampai jumpa kembali!",
   discountPresets: [5, 10, 15, 20, 25],
   theme: BAKERY_THEME,
+  csAdminStatus: "online",
+  csAutoReplyEnabled: true,
 };
 
 export const INITIAL_TRANSACTIONS: Transaction[] = [

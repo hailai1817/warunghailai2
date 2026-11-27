@@ -143,6 +143,10 @@ export interface StoreSettings {
   useRealtimeDate?: boolean;
   discountPresets?: number[];
   theme?: ColorTheme;
+  csAdminStatus?: "online" | "busy" | "offline";
+  csAutoReplyEnabled?: boolean;
+  csCustomBusyMessage?: string;
+  csCustomOfflineMessage?: string;
 }
 
 export type CheckoutResult =
@@ -163,10 +167,11 @@ export interface CustomerReview {
 
 export interface CsChatMessage {
   id: string;
-  senderRole: "pelanggan" | "admin";
+  senderRole: "pelanggan" | "admin" | "bot";
   senderName: string;
   text: string;
   timestamp: string;
+  isBotReply?: boolean;
 }
 
 export interface CsChatThread {
@@ -175,7 +180,7 @@ export interface CsChatThread {
   createdAt: string;
   updatedAt: string;
   lastMessage: string;
-  lastSenderRole: "pelanggan" | "admin";
+  lastSenderRole: "pelanggan" | "admin" | "bot";
   unreadByAdmin: boolean;
   unreadByCustomer: boolean;
   status: "open" | "resolved";

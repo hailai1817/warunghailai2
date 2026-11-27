@@ -148,9 +148,10 @@ interface StoreContextValue {
   sendCsMessage: (
     threadId: string,
     text: string,
-    senderRole: "pelanggan" | "admin",
+    senderRole: "pelanggan" | "admin" | "bot",
     senderName: string,
-    customerMeta: { customerName: string }
+    customerMeta: { customerName: string },
+    isBotReply?: boolean
   ) => Promise<CsChatThread | null>;
   markCsRead: (threadId: string, byRole: "admin" | "pelanggan") => void;
   deleteCsChat: (threadId: string) => void;
@@ -902,13 +903,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     async (
       threadId: string,
       text: string,
-      senderRole: "pelanggan" | "admin",
+      senderRole: "pelanggan" | "admin" | "bot",
       senderName: string,
-      customerMeta: { customerName: string }
+      customerMeta: { customerName: string },
+      isBotReply?: boolean
     ) => {
       const res = await sendCsChatMessage(
         threadId,
-        { senderRole, senderName, text },
+        { senderRole, senderName, text, isBotReply },
         customerMeta
       );
       if (res) {

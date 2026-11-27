@@ -329,7 +329,12 @@ export function subscribeToRealtimeCloud(handlers: RealtimeSubscribers): () => v
 
 export async function sendCsChatMessage(
   threadId: string,
-  message: { senderRole: "pelanggan" | "admin"; senderName: string; text: string },
+  message: {
+    senderRole: "pelanggan" | "admin" | "bot";
+    senderName: string;
+    text: string;
+    isBotReply?: boolean;
+  },
   customerMeta: { customerName: string }
 ): Promise<CsChatThread | null> {
   const db = getDb();
@@ -340,6 +345,7 @@ export async function sendCsChatMessage(
     senderName: message.senderName,
     text: message.text.trim(),
     timestamp,
+    isBotReply: message.isBotReply ?? (message.senderRole === "bot"),
   };
 
   if (!db) return null;
@@ -349,6 +355,9 @@ export async function sendCsChatMessage(
     const snap = await getDoc(threadRef);
     let thread: CsChatThread;
 
+    const isCustomer = message.senderRole === "pelanggan";
+    const isAdminOrBot = message.senderRole === "admin" || message.senderRole === "bot";
+
     if (snap.exists()) {
       const existing = snap.data() as CsChatThread;
       thread = {
@@ -356,8 +365,8 @@ export async function sendCsChatMessage(
         updatedAt: timestamp,
         lastMessage: newMsg.text,
         lastSenderRole: newMsg.senderRole,
-        unreadByAdmin: message.senderRole === "pelanggan" ? true : existing.unreadByAdmin,
-        unreadByCustomer: message.senderRole === "admin" ? true : existing.unreadByCustomer,
+        unreadByAdmin: isCustomer ? true : existing.unreadByAdmin,
+        unreadByCustomer: isAdminOrBot ? true : existing.unreadByCustomer,
         messages: [...(existing.messages || []), newMsg],
       };
     } else {
@@ -368,8 +377,8 @@ export async function sendCsChatMessage(
         updatedAt: timestamp,
         lastMessage: newMsg.text,
         lastSenderRole: newMsg.senderRole,
-        unreadByAdmin: message.senderRole === "pelanggan",
-        unreadByCustomer: message.senderRole === "admin",
+        unreadByAdmin: isCustomer,
+        unreadByCustomer: isAdminOrBot,
         status: "open",
         messages: [newMsg],
       };
