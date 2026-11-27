@@ -10,7 +10,7 @@ import {
   setDoc,
   writeBatch,
 } from "firebase/firestore";
-import { getDb, hasFirebaseConfig } from "./firebase";
+import { getDb, getFirebaseConfig, hasFirebaseConfig } from "./firebase";
 import type { CustomerReview, Employee, Product, ProductAuditLog, StoreSettings, Transaction } from "./types";
 
 export type CloudCollectionKey = "products" | "transactions" | "reviews" | "employees" | "productLogs";
@@ -82,38 +82,14 @@ export async function cloudSave(
     }
     const ref = collection(db, key);
     const items = payload as Array<{ id: string }>;
-    const keptIds = new Set<string>();
 
-    // Prepare all set operations
-    type BatchOp =
-      | { type: "set"; id: string; data: unknown }
-      | { type: "delete"; id: string };
-
-    const ops: BatchOp[] = [];
-    for (const item of items) {
-      keptIds.add(item.id);
-      ops.push({ type: "set", id: item.id, data: cleanForFirestore(item) });
-    }
-
-    // Prepare delete operations for obsolete items
-    const existing = await getDocs(ref);
-    for (const snap of existing.docs) {
-      if (!keptIds.has(snap.id)) {
-        ops.push({ type: "delete", id: snap.id });
-      }
-    }
-
-    // Firestore allows maximum 500 ops per batch. Use 400 to stay safely under limit.
+    // Upsert all items into Firestore safely in chunks without deleting existing items
     const CHUNK_SIZE = 400;
-    for (let i = 0; i < ops.length; i += CHUNK_SIZE) {
-      const chunk = ops.slice(i, i + CHUNK_SIZE);
+    for (let i = 0; i < items.length; i += CHUNK_SIZE) {
+      const chunk = items.slice(i, i + CHUNK_SIZE);
       const batch = writeBatch(db);
-      for (const op of chunk) {
-        if (op.type === "set") {
-          batch.set(doc(ref, op.id), op.data as Record<string, unknown>);
-        } else {
-          batch.delete(doc(ref, op.id));
-        }
+      for (const item of chunk) {
+        batch.set(doc(ref, item.id), cleanForFirestore(item) as Record<string, unknown>, { merge: true });
       }
       await batch.commit();
     }
@@ -178,21 +154,29 @@ export async function cloudTestConnection(): Promise<CloudConnectionStatus> {
       message: "Firebase belum dikonfigurasi. Atur melalui menu Konfigurasi Firebase atau isi .env.local.",
     };
   }
-  const data = await cloudLoadAll();
-  if (data === null) {
+  const db = getDb();
+  if (!db) {
+    return {
+      configured: false,
+      connected: false,
+      message: "Koneksi database Firebase tidak dapat diinisialisasi.",
+    };
+  }
+  try {
+    const sDoc = await getDoc(doc(db, "settings", SETTINGS_DOC));
+    const project = getFirebaseConfig().projectId;
+    return {
+      configured: true,
+      connected: true,
+      message: `Terhubung ke Firebase Firestore (Project: ${project || "aktif"}). Sinkronisasi cloud aktif real-time (dokumen settings ada: ${sDoc.exists() ? "Ya" : "Baru"}).`,
+    };
+  } catch (err) {
     return {
       configured: true,
       connected: false,
-      message:
-        "Tidak bisa terhubung ke Firestore. Cek konfigurasi, aturan (firestore.rules), dan jaringan.",
+      message: `Tidak bisa terhubung ke Firestore: ${err instanceof Error ? err.message : String(err)}`,
     };
   }
-  return {
-    configured: true,
-    connected: true,
-    message:
-      "Terhubung ke Firebase Firestore (request/response). Data tersimpan di cloud + cache lokal.",
-  };
 }
 
 export async function cloudSaveDoc(

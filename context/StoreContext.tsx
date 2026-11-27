@@ -186,7 +186,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         "hailai.reviews.v3",
         "hailai.employees.v3",
         "hailai.productLogs.v3",
-        "hailai_firebase_config",
       ];
       obsoleteKeys.forEach((k) => {
         try {
@@ -615,14 +614,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       actor?: { name: string; role: UserRole; photo?: string }
     ) => {
       let createdId = "P01";
+      let newProduct: Product | null = null;
       setProducts((prev) => {
         const nextSeq = prev.reduce((max, p) => {
           const n = parseInt(p.id.replace(/\D/g, ""), 10);
           return Number.isNaN(n) ? max : Math.max(max, n);
         }, 0);
         createdId = `P${String(nextSeq + 1).padStart(2, "0")}`;
-        return [{ ...data, id: createdId }, ...prev];
+        newProduct = { ...data, id: createdId };
+        return [newProduct, ...prev];
       });
+
+      if (newProduct) {
+        void cloudSaveDoc("products", createdId, newProduct);
+      }
 
       if (actor) {
         const log: ProductAuditLog = {
@@ -638,6 +643,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           newData: data,
         };
         setProductLogs((prev) => [log, ...prev]);
+        void cloudSaveDoc("productLogs", log.id, log);
       }
     },
     []
@@ -654,7 +660,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         prev.map((p) => {
           if (p.id === id) {
             targetName = patch.name || p.name;
-            return { ...p, ...patch };
+            const updated = { ...p, ...patch };
+            void cloudSaveDoc("products", id, updated);
+            return updated;
           }
           return p;
         })
@@ -674,6 +682,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           newData: patch,
         };
         setProductLogs((prev) => [log, ...prev]);
+        void cloudSaveDoc("productLogs", log.id, log);
       }
     },
     []
@@ -697,6 +706,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return prev.filter((p) => p.id !== id);
       });
       setCart((prev) => prev.filter((i) => i.productId !== id));
+      void cloudDeleteDoc("products", id);
 
       if (actor) {
         const log: ProductAuditLog = {
@@ -711,6 +721,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           details: actor.details || `Menghapus produk "${removedName || id}" dari stok katalog`,
         };
         setProductLogs((prev) => [log, ...prev]);
+        void cloudSaveDoc("productLogs", log.id, log);
       }
     },
     []
@@ -764,22 +775,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (duplicate) {
         return { ok: false, error: `Karyawan dengan nama "${cleanName}" sudah terdaftar.` };
       }
+      let createdEmp: Employee | null = null;
       setEmployees((prev) => {
         const nextSeq = prev.reduce((max, e) => {
           const n = parseInt(e.id.replace(/\D/g, ""), 10);
           return Number.isNaN(n) ? max : Math.max(max, n);
         }, 0);
         const id = `E${String(nextSeq + 1).padStart(2, "0")}`;
-        return [
-          {
-            ...data,
-            name: cleanName,
-            id,
-            joinedAt: new Date().toISOString(),
-          },
-          ...prev,
-        ];
+        createdEmp = {
+          ...data,
+          name: cleanName,
+          id,
+          joinedAt: new Date().toISOString(),
+        };
+        return [createdEmp, ...prev];
       });
+      if (createdEmp) {
+        void cloudSaveDoc("employees", (createdEmp as Employee).id, createdEmp);
+      }
       return { ok: true };
     },
     [employees]
@@ -803,15 +816,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
       }
       setEmployees((prev) =>
-        prev.map((e) =>
-          e.id === id
-            ? {
-                ...e,
-                ...patch,
-                name: patch.name !== undefined ? patch.name.trim() : e.name,
-              }
-            : e
-        )
+        prev.map((e) => {
+          if (e.id === id) {
+            const updated = {
+              ...e,
+              ...patch,
+              name: patch.name !== undefined ? patch.name.trim() : e.name,
+            };
+            void cloudSaveDoc("employees", id, updated);
+            return updated;
+          }
+          return e;
+        })
       );
       return { ok: true };
     },
@@ -819,11 +835,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
 
   const deleteEmployee = useCallback((id: string) => {
+    void cloudDeleteDoc("employees", id);
     setEmployees((prev) => prev.filter((e) => e.id !== id));
   }, []);
 
   const updateSettings = useCallback((patch: Partial<StoreSettings>) => {
-    setSettings((prev) => ({ ...prev, ...patch }));
+    setSettings((prev) => {
+      const updated = { ...prev, ...patch };
+      void cloudSave("settings", updated);
+      return updated;
+    });
   }, []);
 
   const resetData = useCallback(() => {

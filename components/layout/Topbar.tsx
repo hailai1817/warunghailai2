@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { LogOut, Menu, X } from "lucide-react";
+import { Cloud, LogOut, Menu, X } from "lucide-react";
 import type { UserRole, ViewKey } from "@/lib/types";
 import { useAuth } from "@/context/AuthContext";
 import { useStore } from "@/context/StoreContext";
@@ -67,7 +67,7 @@ export default function Topbar({
 }: TopbarProps) {
   const now = useSyncExternalStore(subscribeToClock, getClockSnapshot, () => new Date());
   const { user } = useAuth();
-  const { settings } = useStore();
+  const { settings, cloudEnabled } = useStore();
 
   const meta =
     view === "kasir" && user?.role === "pelanggan"
@@ -110,6 +110,28 @@ export default function Topbar({
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Cloud Firestore Status Badge */}
+          <div
+            className={`hidden sm:inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold shadow-sm ${
+              cloudEnabled
+                ? "border-emerald-200 bg-emerald-50/90 text-emerald-800"
+                : "border-amber-200 bg-amber-50/90 text-amber-800"
+            }`}
+            title={
+              cloudEnabled
+                ? "Terhubung ke Cloud Firestore real-time"
+                : "Mode offline lokal"
+            }
+          >
+            <span
+              className={`h-2 w-2 rounded-full ${
+                cloudEnabled ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
+              }`}
+            />
+            <Cloud className="h-3.5 w-3.5 text-emerald-600" />
+            <span>{cloudEnabled ? "Cloud Firestore Aktif" : "Mode Lokal"}</span>
+          </div>
+
           <div className="hidden flex-col items-end md:flex">
             <div className="flex items-center gap-1.5">
               <span
