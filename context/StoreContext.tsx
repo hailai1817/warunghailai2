@@ -108,6 +108,8 @@ interface StoreContextValue {
   employees: Employee[];
   csChats: CsChatThread[];
   unreadAdminCsCount: number;
+  customerChatOpen: boolean;
+  setCustomerChatOpen: (open: boolean) => void;
   hydrated: boolean;
   cloudEnabled: boolean;
   addToCart: (productId: string) => boolean;
@@ -175,6 +177,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [reviews, setReviews] = useState<CustomerReview[]>(INITIAL_REVIEWS);
   const [employees, setEmployees] = useState<Employee[]>(INITIAL_EMPLOYEES);
   const [csChats, setCsChats] = useState<CsChatThread[]>([]);
+  const [customerChatOpen, setCustomerChatOpen] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
 
   // Initial state intentionally matches the server-rendered mock data so the
@@ -954,6 +957,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       employees,
       csChats,
       unreadAdminCsCount,
+      customerChatOpen,
+      setCustomerChatOpen,
       hydrated,
       cloudEnabled: hasFirebaseConfig(),
       addToCart,
@@ -988,6 +993,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       employees,
       csChats,
       unreadAdminCsCount,
+      customerChatOpen,
+      setCustomerChatOpen,
       hydrated,
       addToCart,
       updateCartQty,

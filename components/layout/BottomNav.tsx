@@ -12,7 +12,7 @@ interface BottomNavProps {
 
 export default function BottomNav({ view, onNavigate }: BottomNavProps) {
   const { user } = useAuth();
-  const { cart, unreadAdminCsCount } = useStore();
+  const { cart, unreadAdminCsCount, setCustomerChatOpen } = useStore();
   const items = getNavItemsForRole(user?.role);
   const cartCount = cart.reduce((sum, i) => sum + i.qty, 0);
 
@@ -28,7 +28,13 @@ export default function BottomNav({ view, onNavigate }: BottomNavProps) {
           return (
             <button
               key={item.key}
-              onClick={() => onNavigate(item.key)}
+              onClick={() => {
+                if (user?.role === "pelanggan" && item.key === "chat_cs") {
+                  setCustomerChatOpen(true);
+                } else {
+                  onNavigate(item.key);
+                }
+              }}
               className={`relative flex flex-col items-center gap-1 py-2 text-[10px] font-semibold transition ${
                 active ? "text-[var(--color-terracotta)]" : "text-stone-400"
               }`}

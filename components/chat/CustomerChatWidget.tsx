@@ -24,9 +24,14 @@ const QUICK_QUESTIONS = [
 
 export default function CustomerChatWidget() {
   const { user } = useAuth();
-  const { csChats, sendCsMessage, markCsRead } = useStore();
+  const {
+    csChats,
+    sendCsMessage,
+    markCsRead,
+    customerChatOpen,
+    setCustomerChatOpen,
+  } = useStore();
 
-  const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [inputText, setInputText] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -61,17 +66,17 @@ export default function CustomerChatWidget() {
 
   // Mark thread read when user opens widget
   useEffect(() => {
-    if (isOpen && activeThread && activeThread.unreadByCustomer) {
+    if (customerChatOpen && activeThread && activeThread.unreadByCustomer) {
       markCsRead(activeThread.id, "pelanggan");
     }
-  }, [isOpen, activeThread, markCsRead]);
+  }, [customerChatOpen, activeThread, markCsRead]);
 
   // Auto-scroll to bottom of messages
   useEffect(() => {
-    if (isOpen && !isMinimized) {
+    if (customerChatOpen && !isMinimized) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [isOpen, isMinimized, activeThread?.messages]);
+  }, [customerChatOpen, isMinimized, activeThread?.messages]);
 
   const handleSend = async (textToSend?: string) => {
     const text = (textToSend || inputText).trim();
@@ -102,65 +107,66 @@ export default function CustomerChatWidget() {
   }
 
   return (
-    <div className="no-print fixed bottom-20 right-4 z-40 sm:bottom-6 sm:right-6">
-      {/* Floating Trigger Button */}
-      {!isOpen && (
+    <div className="no-print fixed bottom-24 left-4 z-40 lg:bottom-6 lg:left-72">
+      {/* Floating Trigger Button (Positioned at bottom-left, completely away from cashier/payment panel) */}
+      {!customerChatOpen && (
         <button
           onClick={() => {
-            setIsOpen(true);
+            setCustomerChatOpen(true);
             setIsMinimized(false);
           }}
-          className="group relative flex items-center gap-2.5 rounded-full bg-gradient-to-r from-amber-600 via-orange-600 to-[var(--color-terracotta)] px-4 py-3 text-white shadow-xl shadow-orange-950/20 transition-all duration-300 hover:scale-105 hover:shadow-2xl active:scale-95"
+          className="group relative flex items-center gap-2 rounded-full border border-amber-300/40 bg-gradient-to-r from-stone-900 via-amber-950 to-stone-800 px-3.5 py-2.5 text-white shadow-xl shadow-stone-900/30 transition-all duration-300 hover:scale-105 hover:border-amber-400 hover:shadow-2xl active:scale-95"
           aria-label="Buka Chat CS"
+          title="Butuh bantuan? Chat CS Toko (Admin)"
         >
-          <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
-            <Headphones className="h-5 w-5 text-white transition-transform group-hover:rotate-12" />
+          <div className="relative flex h-7 w-7 items-center justify-center rounded-full bg-amber-500/20 text-amber-400">
+            <Headphones className="h-4 w-4 transition-transform group-hover:rotate-12" />
             {hasUnreadReply && (
-              <span className="absolute -right-0.5 -top-0.5 flex h-3 w-3">
+              <span className="absolute -right-0.5 -top-0.5 flex h-2.5 w-2.5">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75" />
-                <span className="relative inline-flex h-3 w-3 rounded-full bg-rose-500 ring-2 ring-white" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-stone-900" />
               </span>
             )}
           </div>
           <div className="text-left">
-            <p className="text-xs font-black uppercase tracking-wider text-amber-200">
-              Butuh Bantuan?
+            <p className="text-[10px] font-black uppercase tracking-wider text-amber-300/90 leading-tight">
+              Bantuan Toko
             </p>
-            <p className="text-sm font-extrabold leading-none text-white">Chat CS HaiLai</p>
+            <p className="text-xs font-extrabold leading-tight text-white">Chat CS Admin</p>
           </div>
           {hasUnreadReply && (
-            <span className="rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm animate-pulse">
-              Balasan Baru
+            <span className="rounded-full bg-rose-500 px-1.5 py-0.2 text-[9px] font-black text-white shadow-sm animate-pulse">
+              1
             </span>
           )}
         </button>
       )}
 
-      {/* Floating Chat Window */}
-      {isOpen && (
+      {/* Floating Chat Window (Opens on the left, keeping the cashier payment panel completely unobstructed) */}
+      {customerChatOpen && (
         <div
           className={`flex flex-col rounded-3xl border border-stone-200/90 bg-white shadow-2xl transition-all duration-300 ${
             isMinimized
               ? "h-16 w-80 sm:w-96"
-              : "h-[540px] max-h-[85vh] w-[92vw] max-w-sm sm:w-[380px]"
+              : "h-[520px] max-h-[80vh] w-[92vw] max-w-sm sm:w-[370px]"
           }`}
         >
           {/* Header */}
-          <div className="flex items-center justify-between rounded-t-3xl bg-gradient-to-r from-stone-800 via-amber-950 to-stone-900 px-4 py-3.5 text-white shadow-md">
+          <div className="flex items-center justify-between rounded-t-3xl bg-gradient-to-r from-stone-800 via-amber-950 to-stone-900 px-4 py-3 text-white shadow-md">
             <div className="flex items-center gap-2.5">
-              <div className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-400 ring-1 ring-amber-400/30">
-                <Headphones className="h-5 w-5" />
-                <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-stone-900 animate-pulse" />
+              <div className="relative flex h-9 w-9 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-400 ring-1 ring-amber-400/30">
+                <Headphones className="h-4.5 w-4.5" />
+                <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-stone-900 animate-pulse" />
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <h3 className="text-sm font-black leading-tight text-white">CS Warung HaiLai</h3>
+                  <h3 className="text-xs font-black leading-tight text-white">CS Warung HaiLai</h3>
                   <span className="rounded bg-emerald-500/20 px-1.5 py-0.2 text-[9px] font-bold text-emerald-300 ring-1 ring-emerald-500/30">
                     Admin
                   </span>
                 </div>
-                <p className="text-[11px] font-medium text-amber-200/80">
-                  Langsung dijawab Admin (Bukan Bot)
+                <p className="text-[10px] font-medium text-amber-200/80">
+                  Respon langsung Admin (Bukan Bot)
                 </p>
               </div>
             </div>
@@ -174,9 +180,9 @@ export default function CustomerChatWidget() {
                 {isMinimized ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
               </button>
               <button
-                onClick={() => setIsOpen(false)}
+                onClick={() => setCustomerChatOpen(false)}
                 className="rounded-lg p-1.5 text-stone-300 transition hover:bg-white/10 hover:text-white"
-                title="Tutup"
+                title="Tutup Chat"
               >
                 <X className="h-4 w-4" />
               </button>

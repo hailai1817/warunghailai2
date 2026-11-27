@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { Cloud, LogOut, Menu, X } from "lucide-react";
+import { Cloud, Headphones, LogOut, Menu, X } from "lucide-react";
 import type { UserRole, ViewKey } from "@/lib/types";
 import { useAuth } from "@/context/AuthContext";
 import { useStore } from "@/context/StoreContext";
@@ -71,7 +71,7 @@ export default function Topbar({
 }: TopbarProps) {
   const now = useSyncExternalStore(subscribeToClock, getClockSnapshot, () => new Date());
   const { user } = useAuth();
-  const { settings, cloudEnabled } = useStore();
+  const { settings, cloudEnabled, setCustomerChatOpen } = useStore();
 
   const meta =
     view === "kasir" && user?.role === "pelanggan"
@@ -135,6 +135,18 @@ export default function Topbar({
             <Cloud className="h-3.5 w-3.5 text-emerald-600" />
             <span>{cloudEnabled ? "Cloud Firestore Aktif" : "Mode Lokal"}</span>
           </div>
+
+          {/* Customer CS Chat Trigger in Topbar */}
+          {user?.role === "pelanggan" && (
+            <button
+              onClick={() => setCustomerChatOpen(true)}
+              className="flex items-center gap-1.5 rounded-full border border-amber-300/60 bg-gradient-to-r from-amber-500 to-orange-600 px-3 py-1 text-xs font-black text-white shadow-sm transition hover:scale-105 active:scale-95"
+              title="Buka Chat CS (Bantuan Langsung Admin)"
+            >
+              <Headphones className="h-3.5 w-3.5" />
+              <span>Bantuan CS</span>
+            </button>
+          )}
 
           <div className="hidden flex-col items-end md:flex">
             <div className="flex items-center gap-1.5">

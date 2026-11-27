@@ -37,6 +37,13 @@ export function getNavItemsForRole(role?: UserRole): NavItemConfig[] {
         description: "Tulis & Lihat Komentar",
         icon: Star,
       },
+      {
+        key: "chat_cs" as ViewKey,
+        label: "Bantuan & Chat CS",
+        shortLabel: "Chat CS",
+        description: "Chat Langsung Admin",
+        icon: Headphones,
+      },
     ];
   }
 
@@ -113,7 +120,7 @@ interface NavListProps {
 
 export default function NavList({ view, onNavigate, variant = "dark" }: NavListProps) {
   const { user } = useAuth();
-  const { cart, reviews, employees, unreadAdminCsCount } = useStore();
+  const { cart, reviews, employees, unreadAdminCsCount, setCustomerChatOpen } = useStore();
   const navItems = getNavItemsForRole(user?.role);
   const cartCount = cart.reduce((sum, i) => sum + i.qty, 0);
   const reviewCount = reviews.length;
@@ -128,7 +135,13 @@ export default function NavList({ view, onNavigate, variant = "dark" }: NavListP
         return (
           <button
             key={item.key}
-            onClick={() => onNavigate(item.key)}
+            onClick={() => {
+              if (user?.role === "pelanggan" && item.key === "chat_cs") {
+                setCustomerChatOpen(true);
+              } else {
+                onNavigate(item.key);
+              }
+            }}
             className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${
               active
                 ? "bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-md"
