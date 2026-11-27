@@ -161,6 +161,27 @@ export interface CustomerReview {
   adminReplyDate?: string;
 }
 
+export interface CsChatMessage {
+  id: string;
+  senderRole: "pelanggan" | "admin";
+  senderName: string;
+  text: string;
+  timestamp: string;
+}
+
+export interface CsChatThread {
+  id: string;
+  customerName: string;
+  createdAt: string;
+  updatedAt: string;
+  lastMessage: string;
+  lastSenderRole: "pelanggan" | "admin";
+  unreadByAdmin: boolean;
+  unreadByCustomer: boolean;
+  status: "open" | "resolved";
+  messages: CsChatMessage[];
+}
+
 export type ViewKey =
   | "kasir"
   | "riwayat"
@@ -168,11 +189,12 @@ export type ViewKey =
   | "laporan"
   | "ulasan"
   | "karyawan"
+  | "chat_cs"
   | "pengaturan"
   | "profil";
 
 export const ROLE_ALLOWED_VIEWS: Record<UserRole, ViewKey[]> = {
   pelanggan: ["kasir", "riwayat", "ulasan"],
   kasir: ["kasir", "stok", "laporan", "ulasan", "karyawan", "pengaturan", "profil"],
-  admin: ["kasir", "stok", "laporan", "ulasan", "karyawan", "pengaturan", "profil"],
+  admin: ["kasir", "stok", "laporan", "ulasan", "karyawan", "chat_cs", "pengaturan", "profil"],
 };

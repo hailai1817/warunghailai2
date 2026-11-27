@@ -20,6 +20,8 @@ import ReviewsView from "./reviews/ReviewsView";
 import EmployeesView from "./employees/EmployeesView";
 import SettingsView from "./settings/SettingsView";
 import ProfileView from "./profile/ProfileView";
+import AdminChatCsView from "./chat/AdminChatCsView";
+import CustomerChatWidget from "./chat/CustomerChatWidget";
 import Avatar from "./ui/Avatar";
 import AutoScrollWidget from "./ui/AutoScrollWidget";
 
@@ -140,12 +142,14 @@ function AppContent() {
           {activeView === "laporan" && user.role !== "pelanggan" && <ReportsView />}
           {activeView === "ulasan" && <ReviewsView />}
           {activeView === "karyawan" && user.role !== "pelanggan" && <EmployeesView />}
+          {activeView === "chat_cs" && user.role === "admin" && <AdminChatCsView />}
           {activeView === "pengaturan" && user.role !== "pelanggan" && <SettingsView />}
           {activeView === "profil" && user.role !== "pelanggan" && <ProfileView />}
         </main>
       </div>
 
       <BottomNav view={activeView} onNavigate={navigate} />
+      <CustomerChatWidget />
       <AutoScrollWidget />
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, History, Package, Settings, ShoppingBasket, Star, UserCheck, Users } from "lucide-react";
+import { BarChart3, Headphones, History, Package, Settings, ShoppingBasket, Star, UserCheck, Users } from "lucide-react";
 import type { UserRole, ViewKey } from "@/lib/types";
 import { useAuth } from "@/context/AuthContext";
 import { useStore } from "@/context/StoreContext";
@@ -77,6 +77,17 @@ export function getNavItemsForRole(role?: UserRole): NavItemConfig[] {
       description: role === "admin" ? "Profil Staf & Registrasi" : "Direktori Profil Karyawan",
       icon: Users,
     },
+    ...(role === "admin"
+      ? [
+          {
+            key: "chat_cs" as ViewKey,
+            label: "Chat CS Pelanggan",
+            shortLabel: "Chat CS",
+            description: "Bantuan & Live Chat Pelanggan",
+            icon: Headphones,
+          },
+        ]
+      : []),
     {
       key: "pengaturan",
       label: "Pengaturan",
@@ -102,7 +113,7 @@ interface NavListProps {
 
 export default function NavList({ view, onNavigate, variant = "dark" }: NavListProps) {
   const { user } = useAuth();
-  const { cart, reviews, employees } = useStore();
+  const { cart, reviews, employees, unreadAdminCsCount } = useStore();
   const navItems = getNavItemsForRole(user?.role);
   const cartCount = cart.reduce((sum, i) => sum + i.qty, 0);
   const reviewCount = reviews.length;
@@ -150,6 +161,11 @@ export default function NavList({ view, onNavigate, variant = "dark" }: NavListP
             {item.key === "karyawan" && activeEmployeeCount > 0 && (
               <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-emerald-500 px-1.5 text-xs font-bold text-white shadow">
                 {activeEmployeeCount}
+              </span>
+            )}
+            {item.key === "chat_cs" && unreadAdminCsCount > 0 && (
+              <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-rose-500 px-1.5 text-xs font-bold text-white shadow animate-pulse">
+                {unreadAdminCsCount}
               </span>
             )}
           </button>

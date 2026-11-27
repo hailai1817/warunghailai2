@@ -12,6 +12,7 @@ import type { ReactNode } from "react";
 import type {
   CartItem,
   CheckoutResult,
+  CsChatThread,
   CustomerReview,
   Employee,
   PaymentMethod,
@@ -43,6 +44,9 @@ import {
   cloudLoadAll,
   cloudSave,
   cloudSaveDoc,
+  deleteCsThread,
+  markCsThreadRead,
+  sendCsChatMessage,
   subscribeToRealtimeCloud,
 } from "@/lib/firestore-service";
 
@@ -102,6 +106,8 @@ interface StoreContextValue {
   settings: StoreSettings;
   reviews: CustomerReview[];
   employees: Employee[];
+  csChats: CsChatThread[];
+  unreadAdminCsCount: number;
   hydrated: boolean;
   cloudEnabled: boolean;
   addToCart: (productId: string) => boolean;
@@ -137,6 +143,15 @@ interface StoreContextValue {
   addReview: (data: Omit<CustomerReview, "id" | "date">) => void;
   updateReview: (id: string, patch: Partial<Omit<CustomerReview, "id">>) => void;
   deleteReview: (id: string) => void;
+  sendCsMessage: (
+    threadId: string,
+    text: string,
+    senderRole: "pelanggan" | "admin",
+    senderName: string,
+    customerMeta: { customerName: string }
+  ) => Promise<CsChatThread | null>;
+  markCsRead: (threadId: string, byRole: "admin" | "pelanggan") => void;
+  deleteCsChat: (threadId: string) => void;
   addEmployee: (data: Omit<Employee, "id" | "joinedAt">) => EmployeeMutationResult;
   updateEmployee: (
     id: string,
@@ -159,6 +174,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<StoreSettings>(DEFAULT_SETTINGS);
   const [reviews, setReviews] = useState<CustomerReview[]>(INITIAL_REVIEWS);
   const [employees, setEmployees] = useState<Employee[]>(INITIAL_EMPLOYEES);
+  const [csChats, setCsChats] = useState<CsChatThread[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
 
   // Initial state intentionally matches the server-rendered mock data so the
@@ -274,6 +290,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     ];
     setProductLogs(mergedLogs);
 
+    const loadedCsChats = loadFromStorage(STORAGE_KEYS.csChats, [] as CsChatThread[]);
+    setCsChats(loadedCsChats);
+
     setHydrated(true);
     /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
@@ -317,6 +336,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           ...cloud.settings,
           useRealtimeDate: cloud.settings.useRealtimeDate ?? true,
         });
+      }
+      if (cloud.csChats) {
+        setCsChats(cloud.csChats);
       }
     };
 
@@ -377,6 +399,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           if (cancelled) return;
           lastCloudSaved["productLogs"] = JSON.stringify(l);
           setProductLogs(l);
+        },
+        onCsChats: (threads) => {
+          if (cancelled) return;
+          setCsChats(threads);
         },
       });
     })();
@@ -439,6 +465,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (!cloudReady) return;
     scheduleCloudSave("productLogs", productLogs);
   }, [productLogs, hydrated, cloudReady]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    persistLocal(STORAGE_KEYS.csChats, csChats);
+  }, [csChats, hydrated]);
 
   // Apply the user's color theme to the CSS custom properties used by the UI.
   // Runs on mount (after persisted settings load) and whenever the theme changes.
@@ -859,6 +890,59 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const clearTransactions = useCallback(() => setTransactions([]), []);
 
+  const unreadAdminCsCount = useMemo(
+    () => csChats.filter((c) => c.unreadByAdmin).length,
+    [csChats]
+  );
+
+  const sendCsMessage = useCallback(
+    async (
+      threadId: string,
+      text: string,
+      senderRole: "pelanggan" | "admin",
+      senderName: string,
+      customerMeta: { customerName: string }
+    ) => {
+      const res = await sendCsChatMessage(
+        threadId,
+        { senderRole, senderName, text },
+        customerMeta
+      );
+      if (res) {
+        setCsChats((prev) => {
+          const idx = prev.findIndex((t) => t.id === threadId);
+          if (idx >= 0) {
+            const next = [...prev];
+            next[idx] = res;
+            return next;
+          }
+          return [res, ...prev];
+        });
+      }
+      return res;
+    },
+    []
+  );
+
+  const markCsRead = useCallback((threadId: string, byRole: "admin" | "pelanggan") => {
+    void markCsThreadRead(threadId, byRole);
+    setCsChats((prev) =>
+      prev.map((t) => {
+        if (t.id === threadId) {
+          return byRole === "admin"
+            ? { ...t, unreadByAdmin: false }
+            : { ...t, unreadByCustomer: false };
+        }
+        return t;
+      })
+    );
+  }, []);
+
+  const deleteCsChat = useCallback((threadId: string) => {
+    void deleteCsThread(threadId);
+    setCsChats((prev) => prev.filter((t) => t.id !== threadId));
+  }, []);
+
   const value = useMemo<StoreContextValue>(
     () => ({
       products,
@@ -868,6 +952,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       settings,
       reviews,
       employees,
+      csChats,
+      unreadAdminCsCount,
       hydrated,
       cloudEnabled: hasFirebaseConfig(),
       addToCart,
@@ -886,6 +972,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       updateEmployee,
       deleteEmployee,
       updateSettings,
+      sendCsMessage,
+      markCsRead,
+      deleteCsChat,
       resetData,
       clearTransactions,
     }),
@@ -897,6 +986,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       settings,
       reviews,
       employees,
+      csChats,
+      unreadAdminCsCount,
       hydrated,
       addToCart,
       updateCartQty,
@@ -914,6 +1005,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       updateEmployee,
       deleteEmployee,
       updateSettings,
+      sendCsMessage,
+      markCsRead,
+      deleteCsChat,
       resetData,
       clearTransactions,
     ]

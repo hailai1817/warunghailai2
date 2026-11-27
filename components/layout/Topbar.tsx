@@ -30,6 +30,10 @@ const VIEW_TITLES: Record<ViewKey, { title: string; subtitle: string }> = {
   },
   pengaturan: { title: "Pengaturan Toko", subtitle: "Konfigurasi profil dan data toko" },
   profil: { title: "Profil Karyawan", subtitle: "Kelola informasi data pribadi dan foto profil Anda" },
+  chat_cs: {
+    title: "Pusat Bantuan Pelanggan (Chat CS)",
+    subtitle: "Terima dan balas pesan chat bantuan dari pelanggan secara real-time",
+  },
 };
 
 const ROLE_BADGE_STYLE: Record<UserRole, string> = {

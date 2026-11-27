@@ -10,5 +10,7 @@ export const STORAGE_KEYS = {
   reviews: "hailai.reviews.v4",
   employees: "hailai.employees.v4",
   productLogs: "hailai.productLogs.v4",
+  csChats: "hailai.csChats.v4",
+  customerChatId: "hailai.customerChatId.v4",
   auth: "hailai.auth.v1",
 } as const;

@@ -12,22 +12,15 @@ interface BottomNavProps {
 
 export default function BottomNav({ view, onNavigate }: BottomNavProps) {
   const { user } = useAuth();
-  const { cart } = useStore();
+  const { cart, unreadAdminCsCount } = useStore();
   const items = getNavItemsForRole(user?.role);
   const cartCount = cart.reduce((sum, i) => sum + i.qty, 0);
 
   return (
     <nav className="no-print fixed inset-x-0 bottom-0 z-30 border-t border-stone-200 bg-white/95 backdrop-blur lg:hidden">
       <div
-        className={
-          items.length === 3
-            ? "grid grid-cols-3"
-            : items.length === 6
-              ? "grid grid-cols-6"
-              : items.length === 7
-                ? "grid grid-cols-7"
-                : "grid grid-cols-5"
-        }
+        className="grid"
+        style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
       >
         {items.map((item) => {
           const active = view === item.key;
@@ -43,6 +36,11 @@ export default function BottomNav({ view, onNavigate }: BottomNavProps) {
               {item.key === "kasir" && cartCount > 0 && (
                 <span className="absolute right-[calc(50%-18px)] top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-terracotta)] px-1 text-[10px] font-bold text-white">
                   {cartCount}
+                </span>
+              )}
+              {item.key === "chat_cs" && unreadAdminCsCount > 0 && (
+                <span className="absolute right-[calc(50%-18px)] top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white shadow animate-pulse">
+                  {unreadAdminCsCount}
                 </span>
               )}
               <Icon className="h-5 w-5" />

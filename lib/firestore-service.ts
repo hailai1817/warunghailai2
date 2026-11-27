@@ -11,9 +11,9 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { getDb, getFirebaseConfig, hasFirebaseConfig } from "./firebase";
-import type { CustomerReview, Employee, Product, ProductAuditLog, StoreSettings, Transaction } from "./types";
+import type { CsChatMessage, CsChatThread, CustomerReview, Employee, Product, ProductAuditLog, StoreSettings, Transaction } from "./types";
 
-export type CloudCollectionKey = "products" | "transactions" | "reviews" | "employees" | "productLogs";
+export type CloudCollectionKey = "products" | "transactions" | "reviews" | "employees" | "productLogs" | "cs_chats";
 
 export interface CloudData {
   products?: Product[];
@@ -22,6 +22,7 @@ export interface CloudData {
   reviews?: CustomerReview[];
   employees?: Employee[];
   productLogs?: ProductAuditLog[];
+  csChats?: CsChatThread[];
 }
 
 const SETTINGS_DOC = "store";
@@ -37,7 +38,7 @@ export async function cloudLoadAll(): Promise<CloudData | null> {
   const db = getDb();
   if (!db) return null;
   try {
-    const [productsSnap, transactionsSnap, settingsSnap, reviewsSnap, employeesSnap, productLogsSnap] =
+    const [productsSnap, transactionsSnap, settingsSnap, reviewsSnap, employeesSnap, productLogsSnap, csChatsSnap] =
       await Promise.all([
         getDocs(collection(db, "products")),
         getDocs(collection(db, "transactions")),
@@ -45,6 +46,7 @@ export async function cloudLoadAll(): Promise<CloudData | null> {
         getDocs(collection(db, "reviews")),
         getDocs(collection(db, "employees")),
         getDocs(collection(db, "productLogs")),
+        getDocs(collection(db, "cs_chats")),
       ]);
     return {
       products: productsSnap.docs.map((d) => ({ id: d.id, ...(d.data() as object) } as Product)),
@@ -53,6 +55,7 @@ export async function cloudLoadAll(): Promise<CloudData | null> {
       reviews: reviewsSnap.docs.map((d) => ({ id: d.id, ...(d.data() as object) } as CustomerReview)),
       employees: employeesSnap.docs.map((d) => ({ id: d.id, ...(d.data() as object) } as Employee)),
       productLogs: productLogsSnap.docs.map((d) => ({ id: d.id, ...(d.data() as object) } as ProductAuditLog)),
+      csChats: csChatsSnap.docs.map((d) => ({ id: d.id, ...(d.data() as object) } as CsChatThread)),
     };
   } catch {
     // Unreachable network or unsupported rules -> caller falls back to local
@@ -214,6 +217,7 @@ export interface RealtimeSubscribers {
   onProducts?: (products: Product[]) => void;
   onEmployees?: (employees: Employee[]) => void;
   onProductLogs?: (logs: ProductAuditLog[]) => void;
+  onCsChats?: (threads: CsChatThread[]) => void;
 }
 
 export function subscribeToRealtimeCloud(handlers: RealtimeSubscribers): () => void {
@@ -302,7 +306,103 @@ export function subscribeToRealtimeCloud(handlers: RealtimeSubscribers): () => v
     );
   }
 
+  if (handlers.onCsChats) {
+    unsubs.push(
+      onSnapshot(
+        collection(db, "cs_chats"),
+        (snap) => {
+          if (handlers.onCsChats) {
+            const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as object) } as CsChatThread));
+            list.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+            handlers.onCsChats(list);
+          }
+        },
+        (err) => console.warn("Firestore cs_chats sync notice:", err)
+      )
+    );
+  }
+
   return () => {
     unsubs.forEach((unsub) => unsub());
   };
+}
+
+export async function sendCsChatMessage(
+  threadId: string,
+  message: { senderRole: "pelanggan" | "admin"; senderName: string; text: string },
+  customerMeta: { customerName: string }
+): Promise<CsChatThread | null> {
+  const db = getDb();
+  const timestamp = new Date().toISOString();
+  const newMsg: CsChatMessage = {
+    id: `MSG-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    senderRole: message.senderRole,
+    senderName: message.senderName,
+    text: message.text.trim(),
+    timestamp,
+  };
+
+  if (!db) return null;
+
+  try {
+    const threadRef = doc(db, "cs_chats", threadId);
+    const snap = await getDoc(threadRef);
+    let thread: CsChatThread;
+
+    if (snap.exists()) {
+      const existing = snap.data() as CsChatThread;
+      thread = {
+        ...existing,
+        updatedAt: timestamp,
+        lastMessage: newMsg.text,
+        lastSenderRole: newMsg.senderRole,
+        unreadByAdmin: message.senderRole === "pelanggan" ? true : existing.unreadByAdmin,
+        unreadByCustomer: message.senderRole === "admin" ? true : existing.unreadByCustomer,
+        messages: [...(existing.messages || []), newMsg],
+      };
+    } else {
+      thread = {
+        id: threadId,
+        customerName: customerMeta.customerName,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        lastMessage: newMsg.text,
+        lastSenderRole: newMsg.senderRole,
+        unreadByAdmin: message.senderRole === "pelanggan",
+        unreadByCustomer: message.senderRole === "admin",
+        status: "open",
+        messages: [newMsg],
+      };
+    }
+
+    await setDoc(threadRef, cleanForFirestore(thread) as Record<string, unknown>, { merge: true });
+    return thread;
+  } catch (err) {
+    console.warn("[Firestore] Failed to send CS chat message:", err);
+    return null;
+  }
+}
+
+export async function markCsThreadRead(threadId: string, byRole: "admin" | "pelanggan"): Promise<boolean> {
+  const db = getDb();
+  if (!db) return false;
+  try {
+    const threadRef = doc(db, "cs_chats", threadId);
+    const patch = byRole === "admin" ? { unreadByAdmin: false } : { unreadByCustomer: false };
+    await setDoc(threadRef, patch, { merge: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function deleteCsThread(threadId: string): Promise<boolean> {
+  const db = getDb();
+  if (!db) return false;
+  try {
+    await deleteDoc(doc(db, "cs_chats", threadId));
+    return true;
+  } catch {
+    return false;
+  }
 }
