@@ -180,6 +180,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         "hailai.reviews.v2",
         "hailai.employees.v2",
         "hailai.productLogs.v2",
+        "hailai.products.v3",
+        "hailai.transactions.v3",
+        "hailai.settings.v3",
+        "hailai.reviews.v3",
+        "hailai.employees.v3",
+        "hailai.productLogs.v3",
+        "hailai_firebase_config",
       ];
       obsoleteKeys.forEach((k) => {
         try {
@@ -277,6 +284,55 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     let unsubRealtime: (() => void) | null = null;
 
+    const applyCloudData = (cloud: NonNullable<Awaited<ReturnType<typeof cloudLoadAll>>>) => {
+      if (cloud.products && cloud.products.length > 0) {
+        lastCloudSaved["products"] = JSON.stringify(cloud.products);
+        setProducts(migrateProductCatalog(cloud.products));
+      }
+      if (cloud.transactions && cloud.transactions.length > 0) {
+        lastCloudSaved["transactions"] = JSON.stringify(cloud.transactions);
+        setTransactions(cloud.transactions);
+      }
+      if (cloud.employees && cloud.employees.length > 0) {
+        lastCloudSaved["employees"] = JSON.stringify(cloud.employees);
+        setEmployees(cloud.employees);
+      }
+      if (cloud.productLogs && cloud.productLogs.length > 0) {
+        lastCloudSaved["productLogs"] = JSON.stringify(cloud.productLogs);
+        setProductLogs(cloud.productLogs);
+      }
+      if (cloud.reviews && cloud.reviews.length > 0) {
+        const initialAvatarMap = new Map(INITIAL_REVIEWS.map((r) => [r.id, r.avatar]));
+        const mapped = cloud.reviews.map((r) => {
+          if (!r.avatar && initialAvatarMap.has(r.id)) {
+            return { ...r, avatar: initialAvatarMap.get(r.id) };
+          }
+          return r;
+        });
+        lastCloudSaved["reviews"] = JSON.stringify(mapped);
+        setReviews(mapped);
+      }
+      if (cloud.settings) {
+        lastCloudSaved["settings"] = JSON.stringify(cloud.settings);
+        setSettings({
+          ...cloud.settings,
+          useRealtimeDate: cloud.settings.useRealtimeDate ?? true,
+        });
+      }
+    };
+
+    const revalidateCloud = async () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      if (!hasFirebaseConfig()) return;
+      try {
+        const cloud = await cloudLoadAll();
+        if (cancelled || !cloud) return;
+        applyCloudData(cloud);
+      } catch {
+        // ignore
+      }
+    };
+
     void (async () => {
       if (!hasFirebaseConfig()) {
         setCloudReady(true);
@@ -285,40 +341,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const cloud = await cloudLoadAll();
       if (cancelled) return;
       if (cloud !== null) {
-        if (cloud.products && cloud.products.length > 0) {
-          lastCloudSaved["products"] = JSON.stringify(cloud.products);
-          setProducts(migrateProductCatalog(cloud.products));
-        }
-        if (cloud.transactions && cloud.transactions.length > 0) {
-          lastCloudSaved["transactions"] = JSON.stringify(cloud.transactions);
-          setTransactions(cloud.transactions);
-        }
-        if (cloud.employees && cloud.employees.length > 0) {
-          lastCloudSaved["employees"] = JSON.stringify(cloud.employees);
-          setEmployees(cloud.employees);
-        }
-        if (cloud.productLogs && cloud.productLogs.length > 0) {
-          lastCloudSaved["productLogs"] = JSON.stringify(cloud.productLogs);
-          setProductLogs(cloud.productLogs);
-        }
-        if (cloud.reviews && cloud.reviews.length > 0) {
-          const initialAvatarMap = new Map(INITIAL_REVIEWS.map((r) => [r.id, r.avatar]));
-          const mapped = cloud.reviews.map((r) => {
-            if (!r.avatar && initialAvatarMap.has(r.id)) {
-              return { ...r, avatar: initialAvatarMap.get(r.id) };
-            }
-            return r;
-          });
-          lastCloudSaved["reviews"] = JSON.stringify(mapped);
-          setReviews(mapped);
-        }
-        if (cloud.settings) {
-          lastCloudSaved["settings"] = JSON.stringify(cloud.settings);
-          setSettings({
-            ...cloud.settings,
-            useRealtimeDate: cloud.settings.useRealtimeDate ?? true,
-          });
-        }
+        applyCloudData(cloud);
       }
       setCloudReady(true);
 
@@ -359,9 +382,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       });
     })();
 
+    if (typeof window !== "undefined") {
+      window.addEventListener("focus", revalidateCloud);
+      document.addEventListener("visibilitychange", revalidateCloud);
+    }
+    const intervalId = setInterval(revalidateCloud, 15000);
+
     return () => {
       cancelled = true;
       if (unsubRealtime) unsubRealtime();
+      if (typeof window !== "undefined") {
+        window.removeEventListener("focus", revalidateCloud);
+        document.removeEventListener("visibilitychange", revalidateCloud);
+      }
+      clearInterval(intervalId);
     };
   }, []);
 

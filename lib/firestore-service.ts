@@ -47,12 +47,12 @@ export async function cloudLoadAll(): Promise<CloudData | null> {
         getDocs(collection(db, "productLogs")),
       ]);
     return {
-      products: productsSnap.docs.map((d) => d.data() as Product),
-      transactions: transactionsSnap.docs.map((d) => d.data() as Transaction),
+      products: productsSnap.docs.map((d) => ({ id: d.id, ...(d.data() as object) } as Product)),
+      transactions: transactionsSnap.docs.map((d) => ({ id: d.id, ...(d.data() as object) } as Transaction)),
       settings: settingsSnap.exists() ? (settingsSnap.data() as StoreSettings) : null,
-      reviews: reviewsSnap.docs.map((d) => d.data() as CustomerReview),
-      employees: employeesSnap.docs.map((d) => d.data() as Employee),
-      productLogs: productLogsSnap.docs.map((d) => d.data() as ProductAuditLog),
+      reviews: reviewsSnap.docs.map((d) => ({ id: d.id, ...(d.data() as object) } as CustomerReview)),
+      employees: employeesSnap.docs.map((d) => ({ id: d.id, ...(d.data() as object) } as Employee)),
+      productLogs: productLogsSnap.docs.map((d) => ({ id: d.id, ...(d.data() as object) } as ProductAuditLog)),
     };
   } catch {
     // Unreachable network or unsupported rules -> caller falls back to local
@@ -243,13 +243,13 @@ export function subscribeToRealtimeCloud(handlers: RealtimeSubscribers): () => v
       onSnapshot(
         collection(db, "reviews"),
         (snap) => {
-          if (!snap.empty && handlers.onReviews) {
-            const list = snap.docs.map((d) => d.data() as CustomerReview);
+          if (handlers.onReviews) {
+            const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as object) } as CustomerReview));
             list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
             handlers.onReviews(list);
           }
         },
-        () => {}
+        (err) => console.warn("Firestore reviews sync notice:", err)
       )
     );
   }
@@ -259,13 +259,13 @@ export function subscribeToRealtimeCloud(handlers: RealtimeSubscribers): () => v
       onSnapshot(
         collection(db, "transactions"),
         (snap) => {
-          if (!snap.empty && handlers.onTransactions) {
-            const list = snap.docs.map((d) => d.data() as Transaction);
+          if (handlers.onTransactions) {
+            const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as object) } as Transaction));
             list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
             handlers.onTransactions(list);
           }
         },
-        () => {}
+        (err) => console.warn("Firestore transactions sync notice:", err)
       )
     );
   }
@@ -275,12 +275,13 @@ export function subscribeToRealtimeCloud(handlers: RealtimeSubscribers): () => v
       onSnapshot(
         collection(db, "products"),
         (snap) => {
-          if (!snap.empty && handlers.onProducts) {
-            const list = snap.docs.map((d) => d.data() as Product);
+          if (handlers.onProducts) {
+            const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as object) } as Product));
+            list.sort((a, b) => a.id.localeCompare(b.id));
             handlers.onProducts(list);
           }
         },
-        () => {}
+        (err) => console.warn("Firestore products sync notice:", err)
       )
     );
   }
@@ -290,12 +291,13 @@ export function subscribeToRealtimeCloud(handlers: RealtimeSubscribers): () => v
       onSnapshot(
         collection(db, "employees"),
         (snap) => {
-          if (!snap.empty && handlers.onEmployees) {
-            const list = snap.docs.map((d) => d.data() as Employee);
+          if (handlers.onEmployees) {
+            const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as object) } as Employee));
+            list.sort((a, b) => a.id.localeCompare(b.id));
             handlers.onEmployees(list);
           }
         },
-        () => {}
+        (err) => console.warn("Firestore employees sync notice:", err)
       )
     );
   }
@@ -305,13 +307,13 @@ export function subscribeToRealtimeCloud(handlers: RealtimeSubscribers): () => v
       onSnapshot(
         collection(db, "productLogs"),
         (snap) => {
-          if (!snap.empty && handlers.onProductLogs) {
-            const list = snap.docs.map((d) => d.data() as ProductAuditLog);
+          if (handlers.onProductLogs) {
+            const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as object) } as ProductAuditLog));
             list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
             handlers.onProductLogs(list);
           }
         },
-        () => {}
+        (err) => console.warn("Firestore productLogs sync notice:", err)
       )
     );
   }

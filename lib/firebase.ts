@@ -36,20 +36,34 @@ export const ENV_FIREBASE_CONFIG: FirebaseConfigObject = {
 export const FIREBASE_STORAGE_KEY = "hailai_firebase_config";
 
 export function getFirebaseConfig(): FirebaseConfigObject {
+  // Always clean up any corrupted dummy/placeholder configuration stored locally
   if (typeof window !== "undefined") {
     try {
       const stored = localStorage.getItem(FIREBASE_STORAGE_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored) as Partial<FirebaseConfigObject>;
-        if (parsed.apiKey && parsed.projectId && parsed.appId) {
-          return {
-            apiKey: parsed.apiKey.trim(),
-            authDomain: (parsed.authDomain ?? "").trim(),
-            projectId: parsed.projectId.trim(),
-            storageBucket: (parsed.storageBucket ?? "").trim(),
-            messagingSenderId: (parsed.messagingSenderId ?? "").trim(),
-            appId: parsed.appId.trim(),
-          };
+        if (stored.includes("...") || !stored.includes("AIzaSy")) {
+          localStorage.removeItem(FIREBASE_STORAGE_KEY);
+        } else {
+          const parsed = JSON.parse(stored) as Partial<FirebaseConfigObject>;
+          if (
+            parsed.apiKey &&
+            parsed.apiKey.length > 25 &&
+            !parsed.apiKey.includes("...") &&
+            parsed.projectId &&
+            !parsed.projectId.includes("...") &&
+            parsed.appId
+          ) {
+            return {
+              apiKey: parsed.apiKey.trim(),
+              authDomain: (parsed.authDomain ?? "").trim(),
+              projectId: parsed.projectId.trim(),
+              storageBucket: (parsed.storageBucket ?? "").trim(),
+              messagingSenderId: (parsed.messagingSenderId ?? "").trim(),
+              appId: parsed.appId.trim(),
+            };
+          } else {
+            localStorage.removeItem(FIREBASE_STORAGE_KEY);
+          }
         }
       }
     } catch {
@@ -88,11 +102,15 @@ export function hasFirebaseConfig(): boolean {
   const { apiKey, projectId, appId } = config;
   return Boolean(
     apiKey &&
+      apiKey.length > 25 &&
       !apiKey.includes("YOUR_") &&
+      !apiKey.includes("...") &&
       projectId &&
       !projectId.includes("YOUR_") &&
+      !projectId.includes("...") &&
       appId &&
-      !appId.includes("YOUR_")
+      !appId.includes("YOUR_") &&
+      !appId.includes("...")
   );
 }
 
